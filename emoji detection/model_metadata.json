@@ -1,0 +1,92 @@
+{
+  "num_classes": 20,
+  "classes": {
+    "0": {
+      "emoji": "😜",
+      "name": "Winking Face with Tongue"
+    },
+    "1": {
+      "emoji": "📸",
+      "name": "Camera with Flash"
+    },
+    "2": {
+      "emoji": "😍",
+      "name": "Heart Eyes"
+    },
+    "3": {
+      "emoji": "😂",
+      "name": "Face with Tears of Joy"
+    },
+    "4": {
+      "emoji": "😉",
+      "name": "Winking Face"
+    },
+    "5": {
+      "emoji": "🎄",
+      "name": "Christmas Tree"
+    },
+    "6": {
+      "emoji": "📷",
+      "name": "Camera"
+    },
+    "7": {
+      "emoji": "🔥",
+      "name": "Fire"
+    },
+    "8": {
+      "emoji": "😘",
+      "name": "Face Blowing a Kiss"
+    },
+    "9": {
+      "emoji": "❤",
+      "name": "Red Heart"
+    },
+    "10": {
+      "emoji": "😁",
+      "name": "Beaming Face with Smiling Eyes"
+    },
+    "11": {
+      "emoji": "🇺🇸",
+      "name": "United States Flag"
+    },
+    "12": {
+      "emoji": "☀",
+      "name": "Sun / Sunshine"
+    },
+    "13": {
+      "emoji": "✨",
+      "name": "Sparkles"
+    },
+    "14": {
+      "emoji": "💙",
+      "name": "Blue Heart"
+    },
+    "15": {
+      "emoji": "💕",
+      "name": "Two Hearts"
+    },
+    "16": {
+      "emoji": "😎",
+      "name": "Smiling Face with Sunglasses"
+    },
+    "17": {
+      "emoji": "😊",
+      "name": "Smiling Face with Smiling Eyes"
+    },
+    "18": {
+      "emoji": "💜",
+      "name": "Purple Heart"
+    },
+    "19": {
+      "emoji": "💯",
+      "name": "Hundred Points"
+    }
+  },
+  "metrics": {
+    "top1_accuracy": 0.3711,
+    "top3_accuracy": 0.597,
+    "top5_accuracy": 0.7152
+  },
+  "trained_samples": 70000,
+  "created_at": "2026-11-03 23:57:43"
+}
