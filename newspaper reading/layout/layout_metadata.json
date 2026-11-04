@@ -1,0 +1,22 @@
+{
+  "classes": {
+    "0": "Headline",
+    "1": "Body Text",
+    "2": "Banner / Masthead"
+  },
+  "feature_names": [
+    "rel_h",
+    "rel_w",
+    "aspect",
+    "rel_y",
+    "rel_x",
+    "rel_area",
+    "ink_density",
+    "avg_line_height",
+    "line_count",
+    "col_span"
+  ],
+  "accuracy": 0.998,
+  "total_samples": 7687,
+  "trained_at": "2026-11-05 00:02:19"
+}
