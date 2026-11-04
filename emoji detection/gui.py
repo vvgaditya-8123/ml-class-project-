@@ -222,8 +222,12 @@ class EmojiDetectorGUI:
             ("😂 Hilarious Joke", "LMAO that was the funniest thing I have ever heard"),
             ("☀️ Sunny Beach", "Enjoying the warm bright sun at the beach today"),
             ("❤️ Love & Affection", "I love you so much with all my heart sweetheart"),
-            ("🇺🇸 4th of July", "Happy 4th of July parade celebration America"),
-            ("📸 Photo Shoot", "Took stunning pictures with my new camera lens"),
+            ("😭 Crying & Tears", "I cannot stop crying my heart is so broken right now"),
+            ("🥳 Epic Party", "Pop the champagne tonight party vibes graduation celebration"),
+            ("😡 Furious / Mad", "Customer service canceled my order so furious and mad right now"),
+            ("💪 Gym Gains", "Morning workout session at the gym heavy deadlifts gains"),
+            ("☕ Hot Coffee", "Savoring a hot cup of fresh morning espresso and latte"),
+            ("🚀 Rocket Launch", "Startup product launch day going straight to the moon"),
             ("💯 100% Real", "Keeping it 100 percent real all day every day")
         ]
 
@@ -415,7 +419,7 @@ class EmojiDetectorGUI:
 
         # Update Status Bar
         self.status_bar.config(
-            text=f"⚡ Status: Real-time Active | Keystroke Latency: {latency:.2f} ms | Classes: 20 Emojis"
+            text=f"⚡ Status: Real-time Active | Keystroke Latency: {latency:.2f} ms | Classes: 30 Emojis"
         )
 
         if not suggestions:

@@ -7,7 +7,7 @@ An intelligent machine learning system that predicts matching emojis in real-tim
 ## 📌 Features
 
 - **⚡ Sub-2ms Real-Time Inference**: Predicts emojis dynamically on every keystroke (`<KeyRelease>` with debouncing) without stutter or lag.
-- **🎯 20 Emoji Classes**: Mapped directly from Twitter / social media emoji benchmark dataset (`Train.csv`, `Mapping.csv`, `Test.csv`).
+- **🎯 30 Emoji Classes**: Full coverage across positive emotions, love, laughter, sadness/crying, anger, celebrations, coffee, gym/fitness, rockets, and national symbols (`Train.csv`, `Mapping.csv`, `Test.csv`).
 - **🔍 Multi-Scale Feature Union**:
   - Word N-grams (1, 2) with sublinear TF scaling.
   - Character boundary N-grams (3, 5) (`char_wb`) to capture root tokens, word stems, hashtags, and typing prefixes before words are finished.

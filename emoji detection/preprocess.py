@@ -22,7 +22,17 @@ EMOJI_METADATA = {
     16: ("😎", "Smiling Face with Sunglasses"),
     17: ("😊", "Smiling Face with Smiling Eyes"),
     18: ("💜", "Purple Heart"),
-    19: ("💯", "Hundred Points")
+    19: ("💯", "Hundred Points"),
+    20: ("😭", "Loudly Crying Face"),
+    21: ("🥳", "Partying Face"),
+    22: ("😡", "Enraged / Angry Face"),
+    23: ("🙏", "Folded Hands / Prayer / Thanks"),
+    24: ("💪", "Flexed Biceps / Gym / Fitness"),
+    25: ("👏", "Clapping Hands / Applause"),
+    26: ("😴", "Sleeping Face / Tired"),
+    27: ("🎂", "Birthday Cake / Celebration"),
+    28: ("☕", "Hot Beverage / Coffee"),
+    29: ("🚀", "Rocket / Launch / Moon")
 }
 
 # Emoticon regex pattern mapping to capture direct emoji equivalents in text
@@ -33,7 +43,9 @@ EMOTICON_MAP = {
     r'(?::P|:-P|;P|;-P)': ' emoticon_tongue ',
     r'(?:<3)': ' emoticon_heart ',
     r'(?:B-\)|8-\))': ' emoticon_cool ',
-    r'(?::\*|:-\*)': ' emoticon_kiss '
+    r'(?::\*|:-\*)': ' emoticon_kiss ',
+    r'(?:;_;|T_T|:\'\(|:\'-\()': ' emoticon_crying ',
+    r'(?:>:\(|>:-\()': ' emoticon_angry '
 }
 
 def segment_hashtag(tag: str) -> str:
