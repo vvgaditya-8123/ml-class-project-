@@ -168,3 +168,4 @@ if __name__ == "__main__":
         print(f"Detected {len(res)} distinct articles on sample newspaper page:")
         for a in res:
             print(f"  Article {a['article_id']}: Headline box {a['headline_box']}, Body blocks count: {len(a['body_boxes'])}")
+

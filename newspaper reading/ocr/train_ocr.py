@@ -12,8 +12,8 @@ from torch.utils.data import Dataset, DataLoader
 sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TRAIN_DIR = os.path.join(BASE_DIR, "data", "training_data")
-TEST_DIR = os.path.join(BASE_DIR, "data", "testing_data")
+TRAIN_DIR = os.path.join(BASE_DIR, "data2", "training_data")
+TEST_DIR = os.path.join(BASE_DIR, "data2", "testing_data")
 MODEL_OUT = os.path.join(BASE_DIR, "char_ocr_model.pth")
 CLASSES_OUT = os.path.join(BASE_DIR, "char_classes.json")
 
@@ -117,7 +117,7 @@ def train():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.002, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=6)
 
-    epochs = 6
+    epochs = 9
     print(f"\nStarting training for {epochs} epochs...")
     t0 = time.time()
 

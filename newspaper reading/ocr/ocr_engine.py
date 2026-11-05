@@ -235,3 +235,4 @@ if __name__ == "__main__":
         im = cv2.imread(sample_file)
         char, conf = engine.predict_char(im)
         print(f"Sample test prediction: '{char}' with confidence {conf*100:.1f}%")
+
