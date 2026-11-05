@@ -18,6 +18,11 @@ experiment_improvements.py
 newspaper reading/ocr/data/
 newspaper reading/ocr/data2/
 
+# Paddle & Model caches
+.paddlex/
+.paddle/
+**/checkpoints/
+
 # Operating System files
 Thumbs.db
 ehthumbs.db
