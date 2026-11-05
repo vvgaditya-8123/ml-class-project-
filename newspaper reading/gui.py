@@ -311,8 +311,8 @@ class NewspaperReaderGUI:
         self.article_meta_lbl.pack(anchor="w", pady=(4, 0))
 
         # Article Body Text Area
-        body_frame = tk.Frame(parent, bg=self.c_panel, padx=12, pady=(0, 10))
-        body_frame.pack(fill=tk.BOTH, expand=True)
+        body_frame = tk.Frame(parent, bg=self.c_panel, padx=12)
+        body_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         body_scroll = tk.Scrollbar(body_frame)
         body_scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -511,3 +511,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
