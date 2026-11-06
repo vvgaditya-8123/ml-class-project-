@@ -1,0 +1,50 @@
+[
+  {
+    "page": "0000023720.jpg",
+    "description": "Clean / Standard Sample Page (1200x1575)",
+    "dimensions": [
+      1200,
+      1575
+    ],
+    "time_sec": 1.86,
+    "total_articles": 5,
+    "placeholder_bodies": 3,
+    "placeholder_headlines": 0
+  },
+  {
+    "page": "00625137.jpg",
+    "description": "High-Res Multi-Column Page (2560x3313)",
+    "dimensions": [
+      2560,
+      3313
+    ],
+    "time_sec": 16.1,
+    "total_articles": 123,
+    "placeholder_bodies": 116,
+    "placeholder_headlines": 1
+  },
+  {
+    "page": "01138186a.jpg",
+    "description": "Mid-Res Alternative Format (1728x2156)",
+    "dimensions": [
+      1728,
+      2156
+    ],
+    "time_sec": 5.41,
+    "total_articles": 34,
+    "placeholder_bodies": 28,
+    "placeholder_headlines": 4
+  },
+  {
+    "page": "98065867.jpg",
+    "description": "Alternative Publisher Scan (1728x2292)",
+    "dimensions": [
+      1728,
+      2292
+    ],
+    "time_sec": 14.33,
+    "total_articles": 72,
+    "placeholder_bodies": 28,
+    "placeholder_headlines": 0
+  }
+]

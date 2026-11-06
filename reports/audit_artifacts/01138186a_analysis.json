@@ -1,0 +1,558 @@
+{
+  "page": "01138186a.jpg",
+  "description": "Mid-Res Alternative Format (1728x2156)",
+  "dimensions": [
+    1728,
+    2156
+  ],
+  "total_articles": 34,
+  "execution_time_sec": 5.41,
+  "placeholder_bodies_count": 28,
+  "placeholder_headlines_count": 4,
+  "articles": [
+    {
+      "id": 1,
+      "headline": "1NMG EF1ELE1EG LE BF SE1EWELEEE UE EEE EEEW FE",
+      "headline_box": [
+        458,
+        191,
+        860,
+        33
+      ],
+      "confidence": 0.9667,
+      "body_boxes_count": 0,
+      "word_count": 26,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 1 text under '1NMG EF1ELE1EG LE BF SE1EWELEEE UE EEE EEEW FE']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 2,
+      "headline": "BEF",
+      "headline_box": [
+        274,
+        247,
+        54,
+        35
+      ],
+      "confidence": 0.9417,
+      "body_boxes_count": 0,
+      "word_count": 18,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 2 text under 'BEF']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 3,
+      "headline": "KML A UEFE WMSTLGU HEEDELEE1QU EUEN ZE UH HWA VA EFU",
+      "headline_box": [
+        459,
+        254,
+        994,
+        33
+      ],
+      "confidence": 0.9333,
+      "body_boxes_count": 0,
+      "word_count": 28,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 3 text under 'KML A UEFE WMSTLGU HEEDELEE1QU EUEN ZE UH HWA VA EFU']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 4,
+      "headline": "GLZLM AEEH UQE SEEHMLLEH V EEEEG HA EFXEEL TGLEELUEHAP",
+      "headline_box": [
+        300,
+        287,
+        923,
+        33
+      ],
+      "confidence": 0.9167,
+      "body_boxes_count": 0,
+      "word_count": 26,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 4 text under 'GLZLM AEEH UQE SEEHMLLEH V EEEEG HA EFXEEL TGLEELUEHAP']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 5,
+      "headline": "XH2 THH EMFEF LH L1MHSA HE HPKXUK LHLTE HA EHSXEREEE MSE",
+      "headline_box": [
+        460,
+        350,
+        988,
+        34
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 28,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 5 text under 'XH2 THH EMFEF LH L1MHSA HE HPKXUK LHLTE HA EHSXEREEE MSE']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 6,
+      "headline": "MEH FEE GUE V WMMEF EE PEE1HLE EEHEK EHGEEUE 1U PNEEEME LF MUE",
+      "headline_box": [
+        298,
+        384,
+        1118,
+        35
+      ],
+      "confidence": 0.9917,
+      "body_boxes_count": 0,
+      "word_count": 30,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 6 text under 'MEH FEE GUE V WMMEF EE PEE1HLE EEHEK EHGEEUE 1U PNEEEME LF MUE']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 7,
+      "headline": "EHHE FY LUFLUSUEE AEHEH FZEEH",
+      "headline_box": [
+        296,
+        416,
+        495,
+        29
+      ],
+      "confidence": 0.9917,
+      "body_boxes_count": 0,
+      "word_count": 22,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 7 text under 'EHHE FY LUFLUSUEE AEHEH FZEEH']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 8,
+      "headline": "1H3 WAE HFEF 1E HG EE ES PM KGPKEEEHEEE1HH EF EHE V",
+      "headline_box": [
+        456,
+        480,
+        951,
+        32
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 1,
+      "word_count": 2,
+      "is_placeholder_body": false,
+      "is_placeholder_headline": false,
+      "body_text_preview": "ELUUHL PPUHELQRT"
+    },
+    {
+      "id": 9,
+      "headline": "4 WEE ELK DMHK EF ASHEL UW LH GHEEE HH HEEK",
+      "headline_box": [
+        458,
+        568,
+        940,
+        44
+      ],
+      "confidence": 0.9917,
+      "body_boxes_count": 0,
+      "word_count": 28,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 9 text under '4 WEE ELK DMHK EF ASHEL UW LH GHEEE HH HEEK']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 10,
+      "headline": "R65 EUE UF 6RLQ5 BHEAH GBE KUSHE1EUHHLS V GEWGLUE1EUH UHWK GH",
+      "headline_box": [
+        296,
+        604,
+        1136,
+        40
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 28,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 10 text under 'R65 EUE UF 6RLQ5 BHEAH GBE KUSHE1EUHHLS V GEWGLUE1EUH UHWK GH']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 11,
+      "headline": "PGE1HUH S1UGS 6HE SHFEUE GEMAH EE EAE EHEY EG ME HEHE1HE1GLU",
+      "headline_box": [
+        296,
+        640,
+        1120,
+        35
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 1,
+      "word_count": 1,
+      "is_placeholder_body": false,
+      "is_placeholder_headline": false,
+      "body_text_preview": "EOMAG"
+    },
+    {
+      "id": 12,
+      "headline": "IASEE6LEEACL EEUALEE QF ELLE EEWE GE EE EEH6 UA1GEEE PEEH",
+      "headline_box": [
+        449,
+        736,
+        983,
+        33
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 27,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 12 text under 'IASEE6LEEACL EEUALEE QF ELLE EEWE GE EE EEH6 UA1GEEE PEEH']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 13,
+      "headline": "EHZE URLEZFE EEUU",
+      "headline_box": [
+        289,
+        768,
+        299,
+        28
+      ],
+      "confidence": 0.9451,
+      "body_boxes_count": 0,
+      "word_count": 20,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 13 text under 'EHZE URLEZFE EEUU']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 14,
+      "headline": "FHLH LE HEEE AEEH HA EC1EUEZSES AEFUESA EE BUGH",
+      "headline_box": [
+        625,
+        769,
+        788,
+        31
+      ],
+      "confidence": 0.9917,
+      "body_boxes_count": 0,
+      "word_count": 26,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 14 text under 'FHLH LE HEEE AEEH HA EC1EUEZSES AEFUESA EE BUGH']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 15,
+      "headline": "HEUU HEHE EGESUEU EGPUHEA EHELC 1MHLLAEH EO 1LEUE1W F EHGER",
+      "headline_box": [
+        296,
+        800,
+        1072,
+        33
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 27,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 15 text under 'HEUU HEHE EGESUEU EGPUHEA EHELC 1MHLLAEH EO 1LEUE1W F EHGER']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 16,
+      "headline": "CHUHZUE SUBEETEE LU EEHELEQ SWKE AEE1FEELFESL",
+      "headline_box": [
+        296,
+        832,
+        739,
+        26
+      ],
+      "confidence": 0.5775,
+      "body_boxes_count": 0,
+      "word_count": 23,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 16 text under 'CHUHZUE SUBEETEE LU EEHELEQ SWKE AEE1FEELFESL']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 17,
+      "headline": "HZE PUA HE EF8ELE LR P UGET PUHLLCLUSL ELEEEE1M EHEE LEKE",
+      "headline_box": [
+        456,
+        894,
+        987,
+        34
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 28,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 17 text under 'HZE PUA HE EF8ELE LR P UGET PUHLLCLUSL ELEEEE1M EHEE LEKE']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 18,
+      "headline": "EC1EUE1TUG EUPPFE ETE 6U UFEFE MA LMMEAZ PBLLE UE PFLTEEE HURPH QF",
+      "headline_box": [
+        288,
+        927,
+        1160,
+        34
+      ],
+      "confidence": 0.975,
+      "body_boxes_count": 0,
+      "word_count": 29,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 18 text under 'EC1EUE1TUG EUPPFE ETE 6U UFEFE MA LMMEAZ PBLLE UE PFLTEEE HURPH QF']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordin"
+    },
+    {
+      "id": 19,
+      "headline": "EUME FSEEHCH LL HUEH V LWRQKEME T1ELA EF HGLEH HF",
+      "headline_box": [
+        288,
+        958,
+        838,
+        34
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 27,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 19 text under 'EUME FSEEHCH LL HUEH V LWRQKEME T1ELA EF HGLEH HF']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 20,
+      "headline": "EAKZZKZ6",
+      "headline_box": [
+        641,
+        992,
+        210,
+        40
+      ],
+      "confidence": 0.9993,
+      "body_boxes_count": 0,
+      "word_count": 18,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 20 text under 'EAKZZKZ6']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 21,
+      "headline": "CHMKHTNKHTH RFERHKHIGH1MKTEFR",
+      "headline_box": [
+        194,
+        1089,
+        958,
+        97
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 19,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 21 text under 'CHMKHTNKHTH RFERHKHIGH1MKTEFR']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 22,
+      "headline": "1EZMENLG MUUPFH GL",
+      "headline_box": [
+        1297,
+        1145,
+        350,
+        28
+      ],
+      "confidence": 0.9726,
+      "body_boxes_count": 6,
+      "word_count": 24,
+      "is_placeholder_body": false,
+      "is_placeholder_headline": false,
+      "body_text_preview": "1HH TDMEUE EFUAL PU VQE\n\nTF MG EMEM FMMEL4 FH ENE\n\nMELWE TEAG4MVL LI LU LI\n\nZMHEEH EFLE MMWLG HE\n\nZFE DHK1MH MENHHEMQML\n\nLOMUF"
+    },
+    {
+      "id": 23,
+      "headline": "REHMKRMRHHEHFKCKKRTHHHRNRIRS",
+      "headline_box": [
+        184,
+        1187,
+        919,
+        93
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 18,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 23 text under 'REHMKRMRHHEHFKCKKRTHHHRNRIRS']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 24,
+      "headline": "L E HE H E EP E GE",
+      "headline_box": [
+        184,
+        1272,
+        1112,
+        61
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 25,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 24 text under 'L E HE H E EP E GE']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 25,
+      "headline": "KGE LHLHH HHFEEWFEMGUU LUZ YEHF ELMME ZEH HLGEMLW U ML ML G MZ MUFEH MMBKE HMVHU HHUR",
+      "headline_box": [
+        186,
+        1323,
+        1110,
+        35
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 34,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 25 text under 'KGE LHLHH HHFEEWFEMGUU LUZ YEHF ELMME ZEH HLGEMLW U ML ML G MZ MUFEH MMBKE HMVHU HHUR']\nDetailed investigative coverage continues across column lines. Content analyzed from new"
+    },
+    {
+      "id": 26,
+      "headline": "HEADLINE SECTION 26 (Col 1)",
+      "headline_box": [
+        184,
+        1342,
+        1111,
+        85
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 22,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": true,
+      "body_text_preview": "[Article 26 text under 'HEADLINE SECTION 26 (Col 1)']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 27,
+      "headline": "HEADLINE SECTION 27 (Col 1)",
+      "headline_box": [
+        176,
+        1414,
+        1120,
+        145
+      ],
+      "confidence": 0.992,
+      "body_boxes_count": 0,
+      "word_count": 22,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": true,
+      "body_text_preview": "[Article 27 text under 'HEADLINE SECTION 27 (Col 1)']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 28,
+      "headline": "WEHCFQSSE L",
+      "headline_box": [
+        1376,
+        1488,
+        204,
+        28
+      ],
+      "confidence": 0.9664,
+      "body_boxes_count": 1,
+      "word_count": 3,
+      "is_placeholder_body": false,
+      "is_placeholder_headline": false,
+      "body_text_preview": "EP EE L955"
+    },
+    {
+      "id": 29,
+      "headline": "P",
+      "headline_box": [
+        173,
+        1533,
+        1123,
+        215
+      ],
+      "confidence": 0.976,
+      "body_boxes_count": 0,
+      "word_count": 18,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 29 text under 'P']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 30,
+      "headline": "TBHFEHTH WUMMFEMEK GG HYE HFEFG HKH WHHM GHH NWYK E HPUHMNGGUHLHBH LHH",
+      "headline_box": [
+        201,
+        1745,
+        1095,
+        50
+      ],
+      "confidence": 0.9817,
+      "body_boxes_count": 0,
+      "word_count": 29,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 30 text under 'TBHFEHTH WUMMFEMEK GG HYE HFEFG HKH WHHM GHH NWYK E HPUHMNGGUHLHBH LHH']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coo"
+    },
+    {
+      "id": 31,
+      "headline": "HEADLINE SECTION 31 (Col 1)",
+      "headline_box": [
+        180,
+        1793,
+        1116,
+        72
+      ],
+      "confidence": 0.99,
+      "body_boxes_count": 2,
+      "word_count": 13,
+      "is_placeholder_body": false,
+      "is_placeholder_headline": true,
+      "body_text_preview": "TKHUE LMHE HU HUMH F HEEEUMH HM1 M MWHHNL\n\nHUHMCCT F UUU EE1U"
+    },
+    {
+      "id": 32,
+      "headline": "MH UWWFMLGL HE LUEMMLLE IN RE1H HU MW HMMNKH HH HUHZ WHF",
+      "headline_box": [
+        193,
+        1887,
+        715,
+        28
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 29,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 32 text under 'MH UWWFMLGL HE LUEMMLLE IN RE1H HU MW HMMNKH HH HUHZ WHF']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    },
+    {
+      "id": 33,
+      "headline": "HEADLINE SECTION 33 (Col 1)",
+      "headline_box": [
+        177,
+        1914,
+        1119,
+        98
+      ],
+      "confidence": 0.9917,
+      "body_boxes_count": 2,
+      "word_count": 5,
+      "is_placeholder_body": false,
+      "is_placeholder_headline": true,
+      "body_text_preview": "LL EMHFMU NEF FGGL\n\nFEB"
+    },
+    {
+      "id": 34,
+      "headline": "F",
+      "headline_box": [
+        1534,
+        1951,
+        58,
+        32
+      ],
+      "confidence": 1.0,
+      "body_boxes_count": 0,
+      "word_count": 18,
+      "is_placeholder_body": true,
+      "is_placeholder_headline": false,
+      "body_text_preview": "[Article 34 text under 'F']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+    }
+  ]
+}
