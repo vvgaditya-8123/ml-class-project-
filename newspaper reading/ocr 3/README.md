@@ -124,3 +124,4 @@ for article in result["articles"]:
     print(f"Headline: {article['headline']}")
     print(f"Body: {article['body_text'][:100]}...\n")
 ```
+

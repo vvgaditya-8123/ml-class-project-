@@ -42,3 +42,4 @@ class StandardOCRDatasetLoader(BaseOCRDatasetLoader):
                     ))
 
         return items
+

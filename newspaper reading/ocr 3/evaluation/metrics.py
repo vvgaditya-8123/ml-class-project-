@@ -151,3 +151,4 @@ def compute_ocr_metrics_suite(references: List[str], hypotheses: List[str]) -> D
         "mean_recall": round(float(np.mean(recalls)), 4),
         "mean_f1": round(float(np.mean(f1s)), 4)
     }
+

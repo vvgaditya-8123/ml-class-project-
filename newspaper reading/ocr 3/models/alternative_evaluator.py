@@ -102,3 +102,4 @@ class AlternativeModelEvaluator:
                 "status": self.available_engines.get(eng, {}).get("status", "unknown")
             }
         return report
+

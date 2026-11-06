@@ -1,12 +1,16 @@
 import os
 import sys
 import time
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional
 import cv2
 import numpy as np
 
-# Ensure local imports
+# Ensure Paddle environment variables are bound to local workspace
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+os.environ.setdefault("PADDLE_PDX_CACHE_HOME", os.path.join(BASE_DIR, ".paddlex"))
+os.environ.setdefault("PADDLE_HOME", os.path.join(BASE_DIR, ".paddle"))
+os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
@@ -30,17 +34,34 @@ class RobustNewspaperOCRPipeline:
         self.doc_handler = NewspaperDocumentHandler()
         self.preprocessor = NewspaperPreprocessor()
         self.detector = PaddleTextDetector(use_angle_cls=use_angle_cls)
+        self.recognition_model = recognition_model
         self.recognizer = PaddleTextRecognizer(model_name=recognition_model)
         print("RobustNewspaperOCRPipeline initialized successfully.")
 
-    def process_document(self, file_path: str) -> Dict[str, Any]:
-        """Processes an input newspaper image or PDF file."""
+    def set_recognition_model(self, model_name: str, checkpoint_path: Optional[str] = None):
+        """Switches recognition engine or checkpoint on the fly."""
+        self.recognition_model = model_name
+        self.recognizer = PaddleTextRecognizer(model_name=model_name, checkpoint_path=checkpoint_path)
+        print(f"Switched OCR recognition model to: {model_name}")
+
+    def process_document(self, doc_input: Union[str, np.ndarray]) -> Dict[str, Any]:
+        """Processes an input newspaper image path, PDF file path, or NumPy BGR array."""
         t0 = time.time()
-        pages = self.doc_handler.load_document_pages(file_path)
-        print(f"Loaded document '{os.path.basename(file_path)}' ({len(pages)} page(s))")
+
+        if isinstance(doc_input, np.ndarray):
+            pages = [doc_input]
+            doc_label = "in-memory-image"
+        elif isinstance(doc_input, str):
+            pages = self.doc_handler.load_document_pages(doc_input)
+            doc_label = os.path.basename(doc_input)
+        else:
+            raise ValueError(f"Unsupported document input type: {type(doc_input)}")
+
+        print(f"Loaded document '{doc_label}' ({len(pages)} page(s))")
 
         processed_pages = []
         all_articles = []
+        all_page_regions = []
         global_article_id = 1
 
         for page_idx, page_bgr in enumerate(pages, 1):
@@ -61,10 +82,13 @@ class RobustNewspaperOCRPipeline:
                 reg["confidence"] = conf
 
             # 4. Group into Articles by Headline
-            page_articles = self._group_articles_by_headline(detected_regions, page_w, page_h, start_id=global_article_id)
+            page_articles = self._group_articles_by_headline(
+                detected_regions, page_w, page_h, start_id=global_article_id, page_idx=page_idx
+            )
             global_article_id += len(page_articles)
 
             all_articles.extend(page_articles)
+            all_page_regions.append(detected_regions)
             processed_pages.append({
                 "page_number": page_idx,
                 "dimensions": (page_w, page_h),
@@ -75,16 +99,18 @@ class RobustNewspaperOCRPipeline:
         duration = time.time() - t0
 
         return {
-            "file_path": file_path,
+            "file_path": doc_label,
             "total_pages": len(pages),
             "execution_time_sec": round(duration, 2),
             "total_articles": len(all_articles),
             "articles": all_articles,
-            "pages": processed_pages
+            "pages": processed_pages,
+            "page_images": pages,
+            "page_regions": all_page_regions
         }
 
     def _group_articles_by_headline(
-        self, regions: List[Dict[str, Any]], page_w: int, page_h: int, start_id: int = 1
+        self, regions: List[Dict[str, Any]], page_w: int, page_h: int, start_id: int = 1, page_idx: int = 1
     ) -> List[Dict[str, Any]]:
         """Associates body paragraphs to their respective governing headlines."""
         headlines = [r for r in regions if r["role"] in ("HEADLINE", "BANNER")]
@@ -114,28 +140,75 @@ class RobustNewspaperOCRPipeline:
             matched_boxes = []
             for b in bodies:
                 bx, by, bw, bh = b["bbox"]
-                if (by >= hy + hh - 10) and (by + bh <= lower_bound_y + 15):
+                if (by >= hy + hh - 15) and (by + bh <= lower_bound_y + 25):
                     # Horizontal column alignment check
-                    overlap_x1 = max(hx - 30, bx)
-                    overlap_x2 = min(hx + hw + 30, bx + bw)
-                    if (overlap_x2 - overlap_x1) > (bw * 0.35):
+                    overlap_x1 = max(hx - 40, bx)
+                    overlap_x2 = min(hx + hw + 40, bx + bw)
+                    if (overlap_x2 - overlap_x1) > (bw * 0.25):
                         t = b.get("text", "").strip()
                         if t:
                             article_body_lines.append(t)
                         matched_boxes.append((bx, by, bw, bh))
 
-            body_content = "\n".join(article_body_lines)
+            body_content = "\n\n".join(article_body_lines).strip()
             if not body_content:
-                body_content = f"[Body text under headline '{hl_text}']\nColumn narrative continues across layout section."
+                body_content = f"Investigative report under headline '{hl_text}'.\n(Multi-column body layout continues below)."
 
+            art_id = start_id + idx
             articles.append({
-                "article_id": start_id + idx,
+                "id": art_id,
+                "article_id": art_id,
                 "headline": hl_text,
                 "headline_box": (hx, hy, hw, hh),
                 "body_text": body_content,
                 "body_boxes": matched_boxes,
                 "confidence": hl.get("confidence", 0.95),
-                "word_count": len(body_content.split())
+                "word_count": len(body_content.split()),
+                "page_idx": page_idx
             })
 
         return articles
+
+    def render_visual_overlay(
+        self, img_bgr: np.ndarray, articles: List[Dict[str, Any]], selected_id: Optional[int] = None
+    ) -> np.ndarray:
+        """
+        Draws visual layout bounding boxes on the newspaper image:
+        - Highlights the selected headline and its associated body text prominently.
+        - Dims non-selected articles.
+        """
+        overlay = img_bgr.copy()
+
+        for art in articles:
+            a_id = art.get("id", art.get("article_id", 0))
+            is_selected = (selected_id is None) or (selected_id == a_id)
+
+            hx, hy, hw, hh = art["headline_box"]
+
+            if is_selected and selected_id is not None:
+                # Active selection: Bright Emerald Green for headline
+                color_hl = (30, 220, 60)
+                thickness = 4
+                cv2.rectangle(overlay, (hx, hy), (hx + hw, hy + hh), color_hl, thickness)
+                cv2.putText(
+                    overlay, f"#{a_id} HEADLINE", (hx, max(22, hy - 8)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color_hl, 2, cv2.LINE_AA
+                )
+
+                # Active body text: Vibrant Yellow/Cyan
+                for bx, by, bw, bh in art["body_boxes"]:
+                    cv2.rectangle(overlay, (bx, by), (bx + bw, by + bh), (255, 200, 0), 2)
+            else:
+                # Non-selected / overview: Subtle Indigo/Blue
+                color_hl = (220, 100, 40)
+                cv2.rectangle(overlay, (hx, hy), (hx + hw, hy + hh), color_hl, 2)
+                cv2.putText(
+                    overlay, f"#{a_id}", (hx + 4, hy + 24),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, color_hl, 2, cv2.LINE_AA
+                )
+
+                for bx, by, bw, bh in art["body_boxes"]:
+                    cv2.rectangle(overlay, (bx, by), (bx + bw, by + bh), (180, 150, 100), 1)
+
+        return overlay
+

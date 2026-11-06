@@ -166,3 +166,4 @@ class NewspaperPreprocessor:
         clean = self.remove_noise(gray)
         enhanced = self.enhance_contrast(clean)
         return enhanced
+

@@ -133,3 +133,4 @@ class NewspaperAugmentor:
             augmented = self.perspective_distortion(augmented)
 
         return augmented
+

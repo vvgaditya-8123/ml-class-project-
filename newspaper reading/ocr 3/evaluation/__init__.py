@@ -19,3 +19,4 @@ __all__ = [
     "levenshtein_distance",
     "BenchmarkReporter"
 ]
+

@@ -46,3 +46,4 @@ class BenchmarkReporter:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
         print(f"Exported benchmark JSON -> {filepath}")
+

@@ -126,3 +126,36 @@ class CRNNRecognizer(nn.Module):
         text = "".join(decoded_chars)
         avg_conf = float(np.mean(confidences)) if confidences else 0.0
         return text, avg_conf
+
+    @torch.no_grad()
+    def predict_crop(self, crop: np.ndarray, device: torch.device = None) -> Tuple[str, float]:
+        """
+        Runs inference on a single crop image and decodes CTC text.
+        """
+        if crop is None or crop.size == 0:
+            return "", 0.0
+
+        if device is None:
+            device = next(self.parameters()).device
+
+        if len(crop.shape) == 3:
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = crop
+
+        if np.mean(gray) > 127:
+            gray = 255 - gray
+
+        h, w = gray.shape[:2]
+        new_w = max(16, int(w * (32 / max(1, h))))
+        new_w = min(400, new_w)
+        resized = cv2.resize(gray, (new_w, 32), interpolation=cv2.INTER_AREA)
+
+        tensor = ((resized.astype(np.float32) / 127.5) - 1.0)
+        tensor = torch.from_numpy(tensor).unsqueeze(0).unsqueeze(0).to(device)
+
+        self.eval()
+        logits = self(tensor)
+        return self.decode_ctc(logits[0])
+
+

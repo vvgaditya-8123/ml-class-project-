@@ -96,3 +96,4 @@ class BaseOCRDatasetLoader:
                 test.append(item)
 
         return DatasetSplit(train=train, val=val, test=test)
+

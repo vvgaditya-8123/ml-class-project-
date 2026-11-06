@@ -118,3 +118,4 @@ class PageXMLParser(BaseOCRDatasetLoader):
                     items.extend(parsed)
 
         return items
+

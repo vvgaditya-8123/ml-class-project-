@@ -51,3 +51,4 @@ class NewspaperDocumentHandler:
             return pages
         except ImportError:
             raise ImportError("pypdfium2 is required for direct PDF processing.")
+

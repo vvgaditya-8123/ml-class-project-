@@ -73,3 +73,4 @@ class ENPDatasetLoader(BaseOCRDatasetLoader):
                     items.extend(self.parse_alto_xml(os.path.join(root_p, f), image_dir=root_p))
 
         return items
+
