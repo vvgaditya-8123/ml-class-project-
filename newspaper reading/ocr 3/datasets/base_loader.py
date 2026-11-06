@@ -13,6 +13,16 @@ class OCRItem:
     dataset_source: str = "custom"
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def source_document_id(self) -> str:
+        """Returns the document ID or falls back to parent directory/file base."""
+        if "source_document_id" in self.metadata:
+            return str(self.metadata["source_document_id"])
+        if "publisher_id" in self.metadata:
+            return str(self.metadata["publisher_id"])
+        # Heuristic fallback: use parent folder or base image name
+        return os.path.basename(os.path.dirname(self.image_path)) or os.path.basename(self.image_path)
+
     def is_valid(self, min_width: int = 8, min_height: int = 8) -> bool:
         if not self.image_path or not os.path.exists(self.image_path):
             return False
@@ -57,7 +67,6 @@ class BaseOCRDatasetLoader:
                 errors.append(f"Invalid record: {item.image_path}")
                 continue
 
-            # Check image integrity
             try:
                 img = cv2.imread(item.image_path, cv2.IMREAD_GRAYSCALE)
                 if img is None or img.size == 0 or img.shape[0] < 6 or img.shape[1] < 6:
@@ -74,23 +83,43 @@ class BaseOCRDatasetLoader:
         items: List[OCRItem],
         train_ratio: float = 0.80,
         val_ratio: float = 0.10,
-        test_ratio: float = 0.10
+        test_ratio: float = 0.10,
+        group_key: Optional[str] = "source_document_id"
     ) -> DatasetSplit:
         """
-        Uses cryptographic hash of the image path or parent document to guarantee zero data leakage
-        between train, val, and test splits across runs.
+        Guarantees zero data leakage by grouping by document/source ID before assigning splits.
+        All lines/crops from a single page or document remain strictly in the same split.
         """
         train, val, test = [], [], []
 
-        for item in items:
-            # Hash path to assign bucket deterministically [0, 1000)
-            h = int(hashlib.md5(item.image_path.encode('utf-8')).hexdigest()[:8], 16) % 1000
-            val_thresh = int(train_ratio * 1000)
-            test_thresh = int((train_ratio + val_ratio) * 1000)
+        # Determine split threshold markers in [0, 1000)
+        val_thresh = int(train_ratio * 1000)
+        test_thresh = int((train_ratio + val_ratio) * 1000)
 
-            if h < val_thresh:
+        # Cache group assignments
+        group_buckets: Dict[str, str] = {}
+
+        for item in items:
+            if group_key == "source_document_id":
+                grp = item.source_document_id
+            elif group_key and group_key in item.metadata:
+                grp = str(item.metadata[group_key])
+            else:
+                grp = item.image_path
+
+            if grp not in group_buckets:
+                h = int(hashlib.md5(grp.encode('utf-8')).hexdigest()[:8], 16) % 1000
+                if h < val_thresh:
+                    group_buckets[grp] = "train"
+                elif h < test_thresh:
+                    group_buckets[grp] = "val"
+                else:
+                    group_buckets[grp] = "test"
+
+            assigned_split = group_buckets[grp]
+            if assigned_split == "train":
                 train.append(item)
-            elif h < test_thresh:
+            elif assigned_split == "val":
                 val.append(item)
             else:
                 test.append(item)

@@ -13,6 +13,14 @@ class NewspaperDocumentHandler:
     SUPPORTED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".webp"}
     SUPPORTED_PDF_EXTS = {".pdf"}
 
+    @property
+    def pypdfium2_available(self) -> bool:
+        try:
+            import pypdfium2
+            return True
+        except ImportError:
+            return False
+
     @classmethod
     def load_document_pages(cls, file_path: str, render_dpi: int = 200) -> List[np.ndarray]:
         """Loads all document pages as BGR numpy images."""
@@ -39,15 +47,14 @@ class NewspaperDocumentHandler:
             pdf = pdfium.PdfDocument(pdf_path)
             # Default scale is 72 dpi; scale = dpi / 72.0
             scale = dpi / 72.0
-
-            for page_idx in range(len(pdf)):
-                page = pdf[page_idx]
-                bitmap = page.render(scale=scale)
-                pil_image = bitmap.to_pil()
+            for page in pdf:
+                pil_image = page.render(scale=scale).to_pil()
                 # Convert PIL RGB to OpenCV BGR
-                rgb = np.array(pil_image)
-                bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+                bgr = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
                 pages.append(bgr)
             return pages
         except ImportError:
-            raise ImportError("pypdfium2 is required for direct PDF processing.")
+            raise ImportError("PDF rendering requires 'pypdfium2'. Install via 'pip install pypdfium2'.")
+
+# Alias for backwards compatibility
+NewspaperPDFHandler = NewspaperDocumentHandler

@@ -1,153 +1,143 @@
 import os
 import sys
-import json
 import time
+import json
+import joblib
 import cv2
 import numpy as np
-import joblib
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
+from sklearn.model_selection import train_test_split
 
-# Ensure stdout uses UTF-8
-sys.stdout.reconfigure(encoding='utf-8')
-
+# Ensure local imports
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 NEWS_DIR = os.path.join(BASE_DIR, "News")
 MODEL_OUT = os.path.join(BASE_DIR, "layout_model.joblib")
 META_OUT = os.path.join(BASE_DIR, "layout_metadata.json")
 
-# Classes
-CLASS_HEADLINE = 0
-CLASS_BODY = 1
+# Classes: 0: Body Text, 1: Headline, 2: Page Banner / Masthead
+CLASS_BODY = 0
+CLASS_HEADLINE = 1
 CLASS_BANNER = 2
-CLASS_NAMES = {
-    CLASS_HEADLINE: "Headline",
-    CLASS_BODY: "Body Text",
-    CLASS_BANNER: "Banner / Masthead"
-}
+CLASS_NAMES = {0: "BODY_TEXT", 1: "HEADLINE", 2: "BANNER"}
 
-def extract_block_features(img_gray, x, y, w, h, page_w, page_h):
+def extract_block_features(gray: np.ndarray, x: int, y: int, w: int, h: int, page_w: int, page_h: int):
     """
-    Extracts geometric, stroke, and spatial layout features from a candidate text region.
+    Extracts 10 layout geometry & texture features:
+    [rel_h, rel_w, aspect, rel_y, rel_x, rel_area, ink_density, avg_line_height, line_count, col_span]
     """
-    rel_h = h / float(page_h)
-    rel_w = w / float(page_w)
-    aspect = w / float(max(1, h))
-    rel_y = y / float(page_h)
-    rel_x = x / float(page_w)
-    rel_area = (w * h) / float(page_w * page_h)
-
-    # Crop block
-    crop = img_gray[y:y+h, x:x+w]
+    crop = gray[y:y+h, x:x+w]
     if crop.size == 0:
         return None
 
-    # Ink / stroke density
+    rel_h = float(h) / float(page_h)
+    rel_w = float(w) / float(page_w)
+    aspect = float(w) / float(max(1, h))
+    rel_y = float(y) / float(page_h)
+    rel_x = float(x) / float(page_w)
+    rel_area = float(w * h) / float(page_w * page_h)
+
+    # Ink density (foreground pixel ratio)
     thresh = cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-    ink_density = np.sum(thresh == 255) / float(w * h)
+    ink_density = float(np.count_nonzero(thresh)) / float(max(1, w * h))
 
-    # Estimate average line height using horizontal projection profile
-    proj = np.sum(thresh == 255, axis=1)
-    text_rows = np.where(proj > (w * 0.05))[0]
-    line_count = 1
-    if len(text_rows) > 0:
-        # Count transitions to estimate line count
-        diffs = np.diff(text_rows)
-        gaps = np.sum(diffs > 3)
-        line_count = max(1, gaps + 1)
+    # Horizontal projection to estimate text lines inside block
+    h_proj = np.sum(thresh, axis=1) / 255.0
+    gaps = 0
+    in_gap = False
+    for val in h_proj:
+        if val < 2.0 and not in_gap:
+            in_gap = True
+            gaps += 1
+        elif val >= 2.0 and in_gap:
+            in_gap = False
+
+    line_count = max(1, gaps + 1)
     avg_line_height = float(h) / float(line_count)
-
-    # Column span indicator (newspaper column is ~20% of page width)
-    col_span = w / float(page_w * 0.22)
+    col_span = w / float(max(1, page_w * 0.22))
 
     return [
-        rel_h,
-        rel_w,
-        aspect,
-        rel_y,
-        rel_x,
-        rel_area,
-        ink_density,
-        avg_line_height,
-        line_count,
-        col_span
+        rel_h, rel_w, aspect, rel_y, rel_x,
+        rel_area, ink_density, avg_line_height, line_count, col_span
     ]
 
-def collect_training_samples(news_dir, max_pages=60):
-    """
-    Segments candidate regions from newspaper scans and builds a feature dataset.
-    """
-    files = [f for f in os.listdir(news_dir) if f.lower().endswith(('.jpg', '.png'))][:max_pages]
-    X, y = [], []
+def extract_page_samples(fpath: str):
+    """Extracts features and heuristic labels for a single page."""
+    img = cv2.imread(fpath)
+    if img is None:
+        return [], []
 
-    print(f"Collecting layout samples across {len(files)} newspaper pages...")
+    page_h, page_w = img.shape[:2]
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    for fname in files:
-        fpath = os.path.join(news_dir, fname)
-        img = cv2.imread(fpath)
-        if img is None:
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 8)
+    kernel_w = max(15, min(35, int(page_w * 0.02)))
+    h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_w, 3))
+    morphed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, h_kernel)
+
+    contours, _ = cv2.findContours(morphed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    page_X, page_y = [], []
+
+    for cnt in contours:
+        bx, by, bw, bh = cv2.boundingRect(cnt)
+        if bw < 50 or bh < 12:
+            continue
+        if bw > (page_w * 0.98) and bh > (page_h * 0.85):
             continue
 
-        page_h, page_w = img.shape[:2]
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        feats = extract_block_features(gray, bx, by, bw, bh, page_w, page_h)
+        if feats is None:
+            continue
 
-        # Adaptive thresholding to capture text strokes
-        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 8)
+        # Heuristic typographical rules for bootstrapping baseline model
+        if by < (page_h * 0.15) and (bw > (page_w * 0.65) or bh > 120):
+            label = CLASS_BANNER
+        elif bh >= 35 or feats[7] >= 28 or (feats[2] > 3.5 and bh >= 28):
+            label = CLASS_HEADLINE
+        elif bh < 32 and feats[7] < 24:
+            label = CLASS_BODY
+        else:
+            label = CLASS_HEADLINE if (feats[9] > 1.8 and bh >= 25) else CLASS_BODY
 
-        # Connect text horizontally into candidate lines/blocks
-        h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (35, 3))
-        morphed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, h_kernel)
+        page_X.append(feats)
+        page_y.append(label)
 
-        contours, _ = cv2.findContours(morphed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        for cnt in contours:
-            bx, by, bw, bh = cv2.boundingRect(cnt)
-            if bw < 50 or bh < 12:
-                continue
-
-            feats = extract_block_features(gray, bx, by, bw, bh, page_w, page_h)
-            if feats is None:
-                continue
-
-            # Ground truth layout labeling rules based on newspaper typographical hierarchy
-            # 1. Page Banner / Masthead: spans > 70% width or very large area near the top
-            if by < (page_h * 0.15) and (bw > (page_w * 0.65) or bh > 120):
-                label = CLASS_BANNER
-            # 2. Headline: large font line height or tall box spanning across columns
-            elif bh >= 35 or feats[7] >= 28 or (feats[2] > 3.5 and bh >= 28):
-                label = CLASS_HEADLINE
-            # 3. Body Text: standardized column width and line height < 30px
-            elif bh < 32 and feats[7] < 24:
-                label = CLASS_BODY
-            else:
-                # Borderline cases: check column span
-                if feats[9] > 1.8 and bh >= 25:
-                    label = CLASS_HEADLINE
-                else:
-                    label = CLASS_BODY
-
-            X.append(feats)
-            y.append(label)
-
-    return np.array(X), np.array(y)
+    return page_X, page_y
 
 def train():
     print("=" * 60)
-    print("  NEWS LAYOUT ANALYSIS MODEL TRAINING")
+    print("  NEWS LAYOUT ANALYSIS MODEL TRAINING (LEAK-FREE GROUP SPLIT)")
     print("=" * 60)
 
     t0 = time.time()
-    X, y = collect_training_samples(NEWS_DIR, max_pages=80)
-    print(f"Extracted {len(X):,} labeled layout regions from newspaper scans.")
+    if not os.path.exists(NEWS_DIR):
+        raise FileNotFoundError(f"Newspaper news directory not found at: {NEWS_DIR}")
 
-    counts = np.bincount(y)
-    for c_id, count in enumerate(counts):
-        print(f"  Class [{c_id}] {CLASS_NAMES.get(c_id, 'Unknown')}: {count:,} samples")
+    # Use deterministic sorted list
+    all_files = sorted([f for f in os.listdir(NEWS_DIR) if f.lower().endswith(('.jpg', '.png'))])
+    if not all_files:
+        raise RuntimeError(f"No newspaper images found in: {NEWS_DIR}")
 
-    X_train, X_val, y_train, y_val = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+    # Leak-free splitting: split by document/page ID, NOT by pooled regions
+    train_files, val_files = train_test_split(all_files[:80], test_size=0.20, random_state=42)
+    print(f"Split {len(all_files[:80])} pages into {len(train_files)} train pages and {len(val_files)} val pages.")
+
+    X_train, y_train = [], []
+    for f in train_files:
+        px, py = extract_page_samples(os.path.join(NEWS_DIR, f))
+        X_train.extend(px)
+        y_train.extend(py)
+
+    X_val, y_val = [], []
+    for f in val_files:
+        px, py = extract_page_samples(os.path.join(NEWS_DIR, f))
+        X_val.extend(px)
+        y_val.extend(py)
+
+    X_train, y_train = np.array(X_train), np.array(y_train)
+    X_val, y_val = np.array(X_val), np.array(y_val)
+
+    print(f"Collected {len(X_train):,} train regions and {len(X_val):,} validation regions.")
 
     clf = RandomForestClassifier(
         n_estimators=120,
@@ -161,34 +151,37 @@ def train():
     clf.fit(X_train, y_train)
 
     val_preds = clf.predict(X_val)
-    acc = accuracy_score(y_val, val_preds)
+    val_acc = accuracy_score(y_val, val_preds)
 
-    print("\n" + "-" * 40)
-    print("  LAYOUT MODEL VALIDATION RESULTS")
-    print("-" * 40)
-    print(f"  Accuracy: {acc * 100:.2f}%\n")
-    print(classification_report(y_val, val_preds, target_names=[CLASS_NAMES[i] for i in sorted(np.unique(y))]))
-    print("-" * 40)
+    print("\n" + "=" * 50)
+    print(f"  Validation Accuracy (Independent Pages): {val_acc * 100:.2f}%")
+    print("=" * 50)
+    print("\nClassification Report (Held-out Pages):")
+    target_names = [CLASS_NAMES[i] for i in range(len(CLASS_NAMES))]
+    print(classification_report(y_val, val_preds, target_names=target_names, digits=4))
 
-    # Fit final model on 100% of data
-    clf.fit(X, y)
+    # Save model and metadata
     joblib.dump(clf, MODEL_OUT)
-    print(f"Saved layout model to {MODEL_OUT}")
+    print(f"Saved trained layout model -> {MODEL_OUT}")
 
     metadata = {
-        "classes": CLASS_NAMES,
-        "feature_names": [
+        "model_type": "RandomForestClassifier",
+        "n_estimators": 120,
+        "features": [
             "rel_h", "rel_w", "aspect", "rel_y", "rel_x",
             "rel_area", "ink_density", "avg_line_height", "line_count", "col_span"
         ],
-        "accuracy": round(float(acc), 4),
-        "total_samples": len(X),
-        "trained_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        "classes": CLASS_NAMES,
+        "val_accuracy": float(val_acc),
+        "split_strategy": "group_document_leak_free",
+        "train_pages_count": len(train_files),
+        "val_pages_count": len(val_files),
+        "trained_timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
+
     with open(META_OUT, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
-    print(f"Saved layout metadata to {META_OUT}")
+    print(f"Saved layout metadata -> {META_OUT}")
 
 if __name__ == "__main__":
     train()
-

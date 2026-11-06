@@ -1,31 +1,39 @@
 # 📰 Intelligent Newspaper Reader & Layout OCR Pipeline
 
-A dual-model computer vision and deep learning system that analyzes newspaper scans, automatically detects headlines, associates all body text under each respective headline, and presents them in an interactive GUI.
+A modular, truthful computer vision and deep learning system that analyzes newspaper scans, detects layout structure, associates body text under governing headlines, and presents verified transcriptions in an interactive desktop GUI.
 
 ---
 
 ## 🌟 Key Capabilities
 
-1. **Dual AI Models Working Together**:
-   - **Model 1: Deep Learning OCR Model (`ocr/char_ocr_model.pth`)**:
-     - Trained on 20,628 character images across all 36 alphanumeric classes (`0`–`9`, `A`–`Z`).
-     - PyTorch `CharCNN` architecture with 98.81% test accuracy.
-     - Segments horizontal lines into character and word crops for text extraction.
-   - **Model 2: Visual News Layout Model (`layout/layout_model.joblib`)**:
-     - Trained on 188 real scanned newspaper pages.
-     - Random Forest classifier (99.80% accuracy) analyzing 10 geometric, typographical, and spatial features.
-     - Distinguishes **Headlines**, **Body Text Columns**, and **Banners/Mastheads**.
+1. **Truthful, Unfalsified Output Contract (`schema.py`)**:
+   - Zero tolerance for placeholder text, synthetic headline sections, or fabricated body copy.
+   - Clean data contract with explicit `OCRStatus` (`ok`, `empty`, `error`).
+   - Strict separation between **Layout Detection Score** (geometric/spatial classification probability) and **OCR Recognition Score** (character/word transcription confidence).
+   - Empty or low-confidence regions produce honest `"empty"` statuses and descriptive warnings while keeping visual bounding boxes inspectable on the page map.
 
-2. **Hierarchical Article Association**:
-   - Accurately links body text columns and paragraphs geometrically located underneath each headline within its column bounds.
-   - Automatically determines article boundaries before the next headline or section divider.
+2. **Sequence Text Recognition (`ocr/`)**:
+   - Decoupled `TextRecognizer` interface (`ocr/base_recognizer.py`) producing standardized `OCRResult`.
+   - `SequenceTextRecognizer` (`ocr/sequence_ocr.py`) operating on full horizontal line crops and projection-profiled text blocks, eliminating brittle character segmentation.
+   - Legacy `CharCNN` isolated-character classifier preserved under `ocr/legacy_ocr_engine.py` for historical comparison and benchmark reproducibility.
 
-3. **Interactive Graphical User Interface (`gui.py`)**:
-   - **Headline Directory**: Shows all detected headlines in an interactive list on the left.
-   - **Interactive Reader**: Clicking any headline instantly displays that headline and the full text under it.
-   - **Visual Layout Map**: Highlights the selected headline (in green) and all of its associated body text blocks (in yellow/cyan) directly on the newspaper image.
-   - **One-Click Samples**: Pre-loaded dropdown with sample newspaper scans from `layout/News`.
-   - **Export & Copy**: 1-click clipboard copy and text file export.
+3. **Column-Aware Layout Segmentation & Grouping (`layout/`)**:
+   - `LayoutEngine` (`layout/layout_engine.py`) segments newspaper pages into **Headlines**, **Body Columns**, and **Banners/Mastheads**.
+   - Normalized coordinates (`[0.0, 1.0]`) ensure robustness across varied scan resolutions and DPI targets.
+   - Unique body block ownership prevents duplicate column assignment across distinct articles.
+   - Leak-free document-level train/validation splitting (`layout/train_layout.py`) ensures regions from the same newspaper issue never cross evaluation boundaries.
+
+4. **Multi-Format Ingestion & Advanced OCR 3 Suite (`ocr 3/`)**:
+   - PDF ingestion via `pypdfium2` (`ocr 3/pdf_handler.py`) without native Poppler dependencies.
+   - Preprocessing pipeline (`ocr 3/preprocessing/preprocessor.py`) with automatic deskewing, bilateral filtering, CLAHE contrast enhancement, and coordinate transform tracking.
+   - Standardized OCR evaluation metrics (`ocr 3/evaluation/metrics.py`) providing uncapped character error rate (CER), word error rate (WER), token F1, and Kendall's Tau reading order score.
+   - Multi-dataset managers (`ocr 3/datasets/`) supporting Standard OCR, IMPACT PAGE XML, ENP ICDAR ALTO, and PRImA formats.
+
+5. **Responsive Desktop Graphical Interface (`gui.py`)**:
+   - **Dark 3-Panel Workspace**: Browse headlines on the left, read verified article text in the center, and inspect visual overlay boxes on the right.
+   - **Background Worker Thread**: Non-blocking asynchronous analysis prevents UI freezes during heavy layout and OCR processing.
+   - **Honest Score Badges**: Distinct badges for Layout Score and OCR Recognition Score.
+   - **Export & Copy**: 1-click clipboard copying and plain-text file export.
 
 ---
 
@@ -33,57 +41,67 @@ A dual-model computer vision and deep learning system that analyzes newspaper sc
 
 ```
 newspaper reading/
-├── ocr/
-│   ├── data/                   # 36-class alphanumeric dataset (0-9, A-Z)
-│   ├── data2/                  # Supplementary character dataset
-│   ├── train_ocr.py            # PyTorch CharCNN training script
-│   ├── ocr_engine.py           # Character, line & block OCR inference
-│   ├── char_ocr_model.pth      # Trained OCR weights (98.81% accuracy)
-│   └── char_classes.json       # Character label mappings
-├── layout/
-│   ├── News/                   # 188 scanned newspaper page images
-│   ├── train_layout.py         # Layout classifier training script
-│   ├── layout_engine.py        # Visual layout segmentation & article grouping
-│   ├── layout_model.joblib     # Trained Layout model (99.80% accuracy)
-│   └── layout_metadata.json    # Features & class metadata
-├── newspaper_reader.py         # Integration pipeline combining Layout + OCR
-├── gui.py                      # Desktop GUI application
+├── schema.py                   # Data contracts: OCRResult, LayoutRegion, ArticleResult, OCRStatus
+├── newspaper_reader.py         # Primary pipeline combining Layout + Sequence OCR
+├── gui.py                      # Multi-threaded Tkinter desktop application
+├── requirements.txt            # Pinned dependencies (Core + PDF + Optional engines)
 ├── launch_gui.bat              # 1-click launcher for Windows
-├── test_newspaper_reading.py   # Automated unit tests
-└── README.md                   # Documentation
+├── test_newspaper_reading.py   # Comprehensive automated test suite
+├── layout/
+│   ├── layout_engine.py        # Visual layout segmentation & article grouping
+│   ├── layout_model.joblib     # Trained Random Forest layout model
+│   ├── layout_metadata.json    # Feature definitions & class metadata
+│   ├── train_layout.py         # Group-split layout classifier training script
+│   └── News/                   # Scanned newspaper page images
+├── ocr/
+│   ├── base_recognizer.py      # Abstract TextRecognizer interface
+│   ├── sequence_ocr.py         # Sequence-oriented line and block recognizer
+│   ├── ocr_engine.py           # Standardized OCREngine adapter
+│   ├── legacy_ocr_engine.py    # Preserved CharCNN engine for comparison
+│   ├── char_ocr_model.pth      # Trained legacy character classifier weights
+│   ├── char_classes.json       # Character label mappings (0-9, A-Z)
+│   └── train_ocr.py            # Legacy character classifier training script
+└── ocr 3/                      # Advanced Document AI Research Suite
+    ├── ocr3_pipeline.py        # End-to-end PDF/Image pipeline with transform tracking
+    ├── pdf_handler.py          # Native PDF rendering via pypdfium2
+    ├── run_demo.py             # Diagnostic test runner and metrics verifier
+    ├── datasets/               # Loaders: Standard OCR, IMPACT, ENP, PRImA
+    ├── evaluation/             # Uncapped CER/WER, Kendall's Tau, BenchmarkReporter
+    ├── models/                 # CRNN (CNN+BiLSTM+CTC), Paddle detector/recognizer
+    ├── preprocessing/          # Deskew, CLAHE, noise filtering, data augmentor
+    └── training/               # Staged transfer learning & CTC fine-tuning
 ```
 
 ---
 
-## 🚀 Running the Application
+## 🚀 Installation & Running
 
-### Option 1: Double-Click the Launcher
-In Windows File Explorer, double-click `launch_gui.bat`.
-
-### Option 2: From Terminal
+### 1. Install Dependencies
 ```powershell
-cd "c:\dev\ml project\newspaper reading"
+pip install -r requirements.txt
+```
+
+### 2. Launch the Desktop GUI
+Double-click `launch_gui.bat` in Windows File Explorer, or run:
+```powershell
 python gui.py
 ```
 
+### 3. Run Automated Unit Tests
+```powershell
+python test_newspaper_reading.py -v
+```
+
 ---
 
-## 🔄 Re-training the Models
+## 📊 Evaluation & Verification
 
-If you add more data or want to re-train the models:
+To run verification across the OCR 3 architecture components and verify metric computation without mock benchmarks:
+```powershell
+python "ocr 3/run_demo.py"
+```
 
-1. **Re-train the OCR Model**:
-   ```powershell
-   python ocr/train_ocr.py
-   ```
-
-2. **Re-train the Layout Model**:
-   ```powershell
-   python layout/train_layout.py
-   ```
-
-3. **Run Automated Unit Tests**:
-   ```powershell
-   python test_newspaper_reading.py
-   ```
-
+To re-train the layout model with leak-free document grouping:
+```powershell
+python layout/train_layout.py
+```

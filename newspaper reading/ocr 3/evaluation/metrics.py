@@ -27,25 +27,31 @@ def levenshtein_distance(seq1: List[Any], seq2: List[Any]) -> int:
     return int(dp[n][m])
 
 def character_error_rate(ref: str, hyp: str) -> float:
-    """CER = Levenshtein(chars(ref), chars(hyp)) / len(chars(ref))"""
+    """
+    Standard uncapped CER = Levenshtein(chars(ref), chars(hyp)) / len(chars(ref)).
+    Note: When insertions exceed reference length, CER can legitimately exceed 1.0 (100%).
+    """
     ref_chars = list(ref.strip())
     hyp_chars = list(hyp.strip())
     if not ref_chars:
-        return 0.0 if not hyp_chars else 1.0
+        return 0.0 if not hyp_chars else float(len(hyp_chars))
     dist = levenshtein_distance(ref_chars, hyp_chars)
-    return min(1.0, dist / float(len(ref_chars)))
+    return float(dist / float(len(ref_chars)))
 
 def word_error_rate(ref: str, hyp: str) -> float:
-    """WER = Levenshtein(words(ref), words(hyp)) / len(words(ref))"""
+    """
+    Standard uncapped WER = Levenshtein(words(ref), words(hyp)) / len(words(ref)).
+    Note: When insertions exceed reference word count, WER can legitimately exceed 1.0 (100%).
+    """
     ref_words = ref.strip().split()
     hyp_words = hyp.strip().split()
     if not ref_words:
-        return 0.0 if not hyp_words else 1.0
+        return 0.0 if not hyp_words else float(len(hyp_words))
     dist = levenshtein_distance(ref_words, hyp_words)
-    return min(1.0, dist / float(len(ref_words)))
+    return float(dist / float(len(ref_words)))
 
 def normalized_edit_distance(ref: str, hyp: str) -> float:
-    """NED = 1 - (Levenshtein(ref, hyp) / max(len(ref), len(hyp)))"""
+    """NED = 1 - (Levenshtein(ref, hyp) / max(len(ref), len(hyp))) in [0.0, 1.0]."""
     max_len = max(len(ref), len(hyp))
     if max_len == 0:
         return 1.0
@@ -90,7 +96,6 @@ def layout_reading_order_score(true_order_ids: List[int], pred_order_ids: List[i
     if n <= 1:
         return 1.0
 
-    # Map item to its rank in predicted order
     pred_ranks = {item_id: r for r, item_id in enumerate(pred_order_ids)}
     
     concordant = 0
@@ -112,12 +117,14 @@ def layout_reading_order_score(true_order_ids: List[int], pred_order_ids: List[i
 
     if total_pairs == 0:
         return 1.0
-    # Normalized from [-1, 1] to [0, 1]
     tau = (concordant - discordant) / float(total_pairs)
     return max(0.0, (tau + 1.0) / 2.0)
 
 def compute_ocr_metrics_suite(references: List[str], hypotheses: List[str]) -> Dict[str, Any]:
-    """Computes comprehensive OCR evaluation metrics across a dataset."""
+    """
+    Computes comprehensive OCR evaluation metrics across a dataset.
+    Reports both sample-level macro means and corpus-level micro CER/WER.
+    """
     assert len(references) == len(hypotheses), "References and Hypotheses counts must match"
     
     cers = []
@@ -128,10 +135,30 @@ def compute_ocr_metrics_suite(references: List[str], hypotheses: List[str]) -> D
     recalls = []
     f1s = []
 
+    total_char_dist = 0
+    total_ref_chars = 0
+    total_word_dist = 0
+    total_ref_words = 0
+
     for ref, hyp in zip(references, hypotheses):
-        cers.append(character_error_rate(ref, hyp))
-        wers.append(word_error_rate(ref, hyp))
-        neds.append(normalized_edit_distance(ref, hyp))
+        c_err = character_error_rate(ref, hyp)
+        w_err = word_error_rate(ref, hyp)
+        ned = normalized_edit_distance(ref, hyp)
+
+        cers.append(c_err)
+        wers.append(w_err)
+        neds.append(ned)
+
+        r_chars = list(ref.strip())
+        h_chars = list(hyp.strip())
+        total_char_dist += levenshtein_distance(r_chars, h_chars)
+        total_ref_chars += len(r_chars)
+
+        r_words = ref.strip().split()
+        h_words = hyp.strip().split()
+        total_word_dist += levenshtein_distance(r_words, h_words)
+        total_ref_words += len(r_words)
+
         if ref.strip() == hyp.strip():
             exact_matches += 1
 
@@ -141,10 +168,15 @@ def compute_ocr_metrics_suite(references: List[str], hypotheses: List[str]) -> D
         f1s.append(prf["f1"])
 
     total = max(1, len(references))
+    corpus_cer = (total_char_dist / float(max(1, total_ref_chars))) if total_ref_chars > 0 else 0.0
+    corpus_wer = (total_word_dist / float(max(1, total_ref_words))) if total_ref_words > 0 else 0.0
+
     return {
         "num_samples": len(references),
         "mean_cer": round(float(np.mean(cers)), 4),
         "mean_wer": round(float(np.mean(wers)), 4),
+        "corpus_cer": round(float(corpus_cer), 4),
+        "corpus_wer": round(float(corpus_wer), 4),
         "mean_ned": round(float(np.mean(neds)), 4),
         "exact_match_accuracy": round(float(exact_matches / total), 4),
         "mean_precision": round(float(np.mean(precisions)), 4),

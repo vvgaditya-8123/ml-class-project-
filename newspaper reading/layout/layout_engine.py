@@ -1,65 +1,83 @@
 import os
 import sys
 import json
+import joblib
 import cv2
 import numpy as np
-import joblib
-
-# Ensure stdout uses UTF-8
-sys.stdout.reconfigure(encoding='utf-8')
+from typing import List, Dict, Any, Tuple, Optional
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "layout_model.joblib")
 META_PATH = os.path.join(BASE_DIR, "layout_metadata.json")
 
-CLASS_HEADLINE = 0
-CLASS_BODY = 1
+CLASS_BODY = 0
+CLASS_HEADLINE = 1
 CLASS_BANNER = 2
+CLASS_NAMES = {0: "BODY_TEXT", 1: "HEADLINE", 2: "BANNER"}
 
 class LayoutEngine:
+    """
+    Newspaper Layout Segmentation Engine:
+    - Extracts layout candidate regions with normalized coordinates.
+    - Classifies candidate regions into semantic roles (Headline, Body, Banner).
+    - Groups headlines and body columns into cohesive article units.
+    - Enforces unique body block ownership to prevent duplicate assignment across articles.
+    """
+
     def __init__(self, model_path=MODEL_PATH, meta_path=META_PATH):
         if not os.path.exists(model_path):
-            raise FileNotFoundError(f"Layout model not found at {model_path}. Please run train_layout.py first.")
+            raise FileNotFoundError(f"Trained layout model not found at: {model_path}")
+
         self.model = joblib.load(model_path)
         self.metadata = {}
         if os.path.exists(meta_path):
             with open(meta_path, "r", encoding="utf-8") as f:
                 self.metadata = json.load(f)
 
-    def extract_block_features(self, img_gray, x, y, w, h, page_w, page_h):
-        rel_h = h / float(page_h)
-        rel_w = w / float(page_w)
-        aspect = w / float(max(1, h))
-        rel_y = y / float(page_h)
-        rel_x = x / float(page_w)
-        rel_area = (w * h) / float(page_w * page_h)
-
-        crop = img_gray[y:y+h, x:x+w]
+    def extract_block_features(self, gray: np.ndarray, x: int, y: int, w: int, h: int, page_w: int, page_h: int):
+        """
+        Extracts 10 layout geometry & texture features:
+        [rel_h, rel_w, aspect, rel_y, rel_x, rel_area, ink_density, avg_line_height, line_count, col_span]
+        """
+        crop = gray[y:y+h, x:x+w]
         if crop.size == 0:
             return None
 
-        thresh = cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-        ink_density = np.sum(thresh == 255) / float(w * h)
+        rel_h = float(h) / float(page_h)
+        rel_w = float(w) / float(page_w)
+        aspect = float(w) / float(max(1, h))
+        rel_y = float(y) / float(page_h)
+        rel_x = float(x) / float(page_w)
+        rel_area = float(w * h) / float(page_w * page_h)
 
-        proj = np.sum(thresh == 255, axis=1)
-        text_rows = np.where(proj > (w * 0.05))[0]
-        line_count = 1
-        if len(text_rows) > 0:
-            diffs = np.diff(text_rows)
-            gaps = np.sum(diffs > 3)
-            line_count = max(1, gaps + 1)
+        # Ink density (foreground pixel ratio)
+        thresh = cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+        ink_density = float(np.count_nonzero(thresh)) / float(max(1, w * h))
+
+        # Horizontal projection to estimate text lines inside block
+        h_proj = np.sum(thresh, axis=1) / 255.0
+        gaps = 0
+        in_gap = False
+        for val in h_proj:
+            if val < 2.0 and not in_gap:
+                in_gap = True
+                gaps += 1
+            elif val >= 2.0 and in_gap:
+                in_gap = False
+
+        line_count = max(1, gaps + 1)
         avg_line_height = float(h) / float(line_count)
-        col_span = w / float(page_w * 0.22)
+        col_span = w / float(max(1, page_w * 0.22))
 
         return [
             rel_h, rel_w, aspect, rel_y, rel_x,
             rel_area, ink_density, avg_line_height, line_count, col_span
         ]
 
-    def segment_layout(self, img_bgr: np.ndarray):
+    def segment_layout(self, img_bgr: np.ndarray) -> List[Dict[str, Any]]:
         """
         Extracts candidate blocks, predicts their layout class (Headline vs Body vs Banner),
-        and organizes them into structured article units.
+        and organizes them into structured article units with unique body assignments.
         """
         page_h, page_w = img_bgr.shape[:2]
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
@@ -67,8 +85,9 @@ class LayoutEngine:
         # Adaptive thresholding
         thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 8)
 
-        # Morphological horizontal line/block grouping
-        h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (35, 3))
+        # Morphological horizontal line/block grouping with responsive kernel
+        kernel_w = max(15, min(35, int(page_w * 0.02)))
+        h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_w, 3))
         morphed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, h_kernel)
 
         contours, _ = cv2.findContours(morphed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -76,12 +95,17 @@ class LayoutEngine:
         candidates = []
         for cnt in contours:
             bx, by, bw, bh = cv2.boundingRect(cnt)
-            if bw < 45 or bh < 10:
+            # Boundary sanity checks: filter out whole-page borders and specks
+            if bw < 35 or bh < 8:
                 continue
+            if bw > (page_w * 0.98) and bh > (page_h * 0.85):
+                continue
+
             feats = self.extract_block_features(gray, bx, by, bw, bh, page_w, page_h)
             if feats is not None:
                 candidates.append({
                     "box": (bx, by, bw, bh),
+                    "normalized_box": (bx / page_w, by / page_h, (bx + bw) / page_w, (by + bh) / page_h),
                     "feats": feats
                 })
 
@@ -124,48 +148,50 @@ class LayoutEngine:
             lower_bound_y = page_h
             for other_hl in headlines:
                 ox, oy, ow, oh = other_hl["box"]
-                if oy > hy: # below this headline
-                    # Check horizontal overlap
+                if oy > hy:  # strictly below this headline
                     overlap_x1 = max(hx, ox)
                     overlap_x2 = min(hl_right, ox + ow)
-                    if overlap_x2 - overlap_x1 > 30: # overlapping column
+                    if (overlap_x2 - overlap_x1) > 25:
                         if oy < lower_bound_y:
                             lower_bound_y = oy
 
-            # Collect body text blocks falling within this article region
+            # Collect body text blocks with unique ownership check
             matched_body = []
             for b_idx, b in enumerate(body_blocks):
+                if b_idx in assigned_body_indices:
+                    continue
+
                 bx, by, bw, bh = b["box"]
                 # Must be vertically below the headline and above the lower boundary
                 if (by >= (hl_bottom - 10)) and (by + bh <= (lower_bound_y + 15)):
                     # Check horizontal alignment (within column span of the headline)
                     overlap_x1 = max(hx - 25, bx)
                     overlap_x2 = min(hl_right + 25, bx + bw)
-                    if (overlap_x2 - overlap_x1) > (bw * 0.4):
+                    if (overlap_x2 - overlap_x1) > (bw * 0.35):
                         matched_body.append(b)
                         assigned_body_indices.add(b_idx)
 
             # Sort matched body blocks in reading order (top to bottom)
             matched_body.sort(key=lambda b: (b["box"][1], b["box"][0]))
 
+            # Clamp crops safely
+            hl_crop = img_bgr[max(0, hy):min(page_h, hy+hh), max(0, hx):min(page_w, hx+hw)]
+            body_crops = [
+                img_bgr[max(0, b['box'][1]):min(page_h, b['box'][1]+b['box'][3]),
+                        max(0, b['box'][0]):min(page_w, b['box'][0]+b['box'][2])]
+                for b in matched_body
+            ]
+
             articles.append({
                 "article_id": idx + 1,
                 "headline_box": (hx, hy, hw, hh),
-                "headline_crop": img_bgr[hy:hy+hh, hx:hx+hw],
+                "normalized_headline_box": hl["normalized_box"],
+                "headline_crop": hl_crop,
                 "headline_conf": hl["conf"],
+                "layout_score": hl["conf"],
                 "body_boxes": [b["box"] for b in matched_body],
-                "body_crops": [img_bgr[b['box'][1]:b['box'][1]+b['box'][3], b['box'][0]:b['box'][0]+b['box'][2]] for b in matched_body]
+                "normalized_body_boxes": [b["normalized_box"] for b in matched_body],
+                "body_crops": body_crops
             })
 
         return articles
-
-if __name__ == "__main__":
-    engine = LayoutEngine()
-    news_sample = os.path.join(BASE_DIR, "News", "0000023720.jpg")
-    if os.path.exists(news_sample):
-        im = cv2.imread(news_sample)
-        res = engine.segment_layout(im)
-        print(f"Detected {len(res)} distinct articles on sample newspaper page:")
-        for a in res:
-            print(f"  Article {a['article_id']}: Headline box {a['headline_box']}, Body blocks count: {len(a['body_boxes'])}")
-

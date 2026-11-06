@@ -1,0 +1,27 @@
+# Core Newspaper Reading & Layout Engine Requirements
+# Verified compatible on Python 3.10 - 3.13 (Windows 11 / Linux / macOS)
+
+# Core Computer Vision & Image Processing
+numpy>=1.24.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# Deep Learning & Machine Learning
+torch>=2.0.0
+torchvision>=0.15.0
+scikit-learn>=1.3.0
+joblib>=1.3.0
+
+# System Telemetry & Utilities
+psutil>=5.9.0
+
+# Document Handling (PDF multi-page rendering)
+pypdfium2>=4.20.0
+
+# Optional: Sequence Transformers & Vision Models
+transformers>=4.35.0
+
+# Optional Alternative OCR Backends (uncomment if platform supports pre-built wheels)
+# paddlepaddle>=2.5.0
+# paddleocr>=2.7.0
+# easyocr>=1.7.0

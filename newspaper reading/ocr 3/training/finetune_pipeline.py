@@ -1,11 +1,10 @@
 import os
 import sys
 import time
-import math
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict, Any
-import cv2
+from typing import List, Optional, Tuple, Dict, Any
 import numpy as np
+import cv2
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -15,29 +14,30 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from models.crnn_recognizer import CRNNRecognizer, CHAR_TO_IDX, VOCAB_LIST, BLANK_IDX
+from models.crnn_recognizer import CRNNRecognizer, VOCAB_LIST, CHAR_TO_IDX, BLANK_IDX
 from datasets.base_loader import OCRItem
 from preprocessing.augmentor import NewspaperAugmentor
 
 @dataclass
 class TrainingConfig:
-    batch_size: int = 16
-    learning_rate: float = 0.0005
-    max_epochs: int = 10
-    freeze_backbone: bool = True
-    early_stopping_patience: int = 3
+    max_epochs: int = 20
+    batch_size: int = 32
+    learning_rate: float = 3e-4
+    freeze_backbone: bool = False
     checkpoint_dir: str = os.path.join(BASE_DIR, "checkpoints", "finetuned_recognition")
+    patience: int = 5
     pretrained_weights_path: Optional[str] = None
     resume_checkpoint: Optional[str] = None
     target_img_height: int = 32
-    max_img_width: int = 320
+    max_img_width: int = 640
     weight_decay: float = 1e-4
 
 class NewspaperTextLineDataset(Dataset):
     """
     Dataset loader for fine-tuning text-line recognition with CTC targets.
+    Preserves exact character case and aspect ratios.
     """
-    def __init__(self, items: List[OCRItem], img_height: int = 32, max_width: int = 320, augment: bool = False):
+    def __init__(self, items: List[OCRItem], img_height: int = 32, max_width: int = 640, augment: bool = False):
         self.items = items
         self.img_height = img_height
         self.max_width = max_width
@@ -48,11 +48,17 @@ class NewspaperTextLineDataset(Dataset):
 
     def text_to_labels(self, text: str) -> List[int]:
         labels = []
+        unknown_chars = []
         for ch in text:
             if ch in CHAR_TO_IDX:
                 labels.append(CHAR_TO_IDX[ch])
-            elif ch.upper() in CHAR_TO_IDX:
-                labels.append(CHAR_TO_IDX[ch.upper()])
+            else:
+                unknown_chars.append(ch)
+
+        if unknown_chars:
+            # Report vocabulary mismatch without silently deleting
+            print(f"Warning: Character(s) not in vocabulary: {set(unknown_chars)} in text '{text}'")
+
         return labels if labels else [CHAR_TO_IDX.get(" ", 1)]
 
     def __getitem__(self, idx):
@@ -78,15 +84,16 @@ class NewspaperTextLineDataset(Dataset):
 
         # Resize preserving aspect ratio to height 32
         h, w = img.shape[:2]
-        new_w = max(16, int(w * (self.img_height / max(1, h))))
+        scale = float(self.img_height) / float(max(1, h))
+        new_w = max(16, int(w * scale))
         new_w = min(self.max_width, new_w)
         resized = cv2.resize(img, (new_w, self.img_height), interpolation=cv2.INTER_AREA)
 
-        # Pad to max_width
+        # Pad to max_width preserving aspect ratio
         canvas = np.zeros((self.img_height, self.max_width), dtype=np.float32)
         canvas[:, :new_w] = (resized.astype(np.float32) / 127.5) - 1.0
 
-        tensor = torch.from_numpy(canvas).unsqueeze(0) # (1, 32, W)
+        tensor = torch.from_numpy(canvas).unsqueeze(0)  # (1, 32, W)
         labels = self.text_to_labels(item.transcription)
 
         # Compute output sequence length after CNN subsampling (4x horizontal pooling)
@@ -105,7 +112,7 @@ def ctc_collate_fn(batch):
 class FineTunePipeline:
     """
     Custom transfer learning & fine-tuning pipeline for newspaper OCR:
-    - Backbone layer freezing/unfreezing
+    - Backbone layer freezing/unfreezing with safety verification
     - Connectionist Temporal Classification (CTC) Loss
     - Learning rate scheduling with Cosine Annealing
     - Checkpoint recovery (resuming interrupted jobs)
@@ -122,7 +129,14 @@ class FineTunePipeline:
         self.criterion = nn.CTCLoss(blank=BLANK_IDX, zero_infinity=True)
 
         if self.cfg.freeze_backbone:
-            print("Backbone frozen for initial head adaptation.")
+            if not self.cfg.pretrained_weights_path or not os.path.exists(self.cfg.pretrained_weights_path):
+                raise ValueError(
+                    "Cannot freeze a randomly initialized backbone. "
+                    "Provide compatible pretrained weights or train the full model."
+                )
+            state = torch.load(self.cfg.pretrained_weights_path, map_location=self.device)
+            self.model.load_state_dict(state, strict=True)
+            print("Pretrained weights loaded successfully; freezing CNN backbone.")
             self.model.freeze_backbone()
 
         self.optimizer = torch.optim.AdamW(
@@ -157,13 +171,13 @@ class FineTunePipeline:
             targets = targets.to(self.device)
 
             self.optimizer.zero_grad()
-            logits = self.model(imgs) # (B, W, Classes)
-            log_probs = logits.log_softmax(2).permute(1, 0, 2) # (W, B, Classes) for CTCLoss
+            logits = self.model(imgs)  # (B, W, Classes)
+            log_probs = logits.log_softmax(2).permute(1, 0, 2)  # (W, B, Classes) for CTCLoss
 
             loss = self.criterion(log_probs, targets, input_lens, target_lens)
             if not torch.isnan(loss) and not torch.isinf(loss):
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5.0)
+                nn.utils.clip_grad_norm_(self.model.parameters(), 5.0)
                 self.optimizer.step()
                 total_loss += loss.item()
 
@@ -172,90 +186,66 @@ class FineTunePipeline:
     def evaluate(self, dataloader: DataLoader) -> float:
         self.model.eval()
         total_loss = 0.0
+
         with torch.no_grad():
             for imgs, targets, input_lens, target_lens in dataloader:
                 imgs = imgs.to(self.device)
                 targets = targets.to(self.device)
+
                 logits = self.model(imgs)
                 log_probs = logits.log_softmax(2).permute(1, 0, 2)
+
                 loss = self.criterion(log_probs, targets, input_lens, target_lens)
                 if not torch.isnan(loss) and not torch.isinf(loss):
                     total_loss += loss.item()
 
         return total_loss / max(1, len(dataloader))
 
-    def save_checkpoint(self, epoch: int, is_best: bool = False):
-        ckpt_path = os.path.join(self.cfg.checkpoint_dir, f"checkpoint_epoch_{epoch}.pt")
-        state = {
-            "epoch": epoch,
-            "model_state": self.model.state_dict(),
-            "optimizer_state": self.optimizer.state_dict(),
-            "scheduler_state": self.scheduler.state_dict(),
-            "best_val_loss": self.best_val_loss,
-            "vocab": VOCAB_LIST
-        }
-        torch.save(state, ckpt_path)
-        if is_best:
-            best_path = os.path.join(self.cfg.checkpoint_dir, "best_finetuned_model.pt")
-            torch.save(state, best_path)
-            print(f"  ⭐ Saved new best checkpoint -> {best_path}")
-
-    def resume(self, checkpoint_path: str):
-        print(f"Resuming training state from {checkpoint_path}...")
-        ckpt = torch.load(checkpoint_path, map_location=self.device)
-        self.model.load_state_dict(ckpt["model_state"])
-        self.optimizer.load_state_dict(ckpt["optimizer_state"])
-        self.scheduler.load_state_dict(ckpt["scheduler_state"])
-        self.start_epoch = ckpt["epoch"] + 1
-        self.best_val_loss = ckpt.get("best_val_loss", float("inf"))
-        print(f"Resumed successfully at epoch {self.start_epoch}.")
-
     def fit(self, train_items: List[OCRItem], val_items: List[OCRItem]):
-        print("=" * 60)
-        print("  STARTING NEWSPAPER OCR FINE-TUNING PIPELINE")
-        print("=" * 60)
-        print(f"Train samples: {len(train_items):,} | Val samples: {len(val_items):,}")
-        print(f"Device: {self.device} | Initial {self.log_resource_usage()}")
+        train_ds = NewspaperTextLineDataset(train_items, self.cfg.target_img_height, self.cfg.max_img_width, augment=True)
+        val_ds = NewspaperTextLineDataset(val_items, self.cfg.target_img_height, self.cfg.max_img_width, augment=False)
 
-        train_ds = NewspaperTextLineDataset(train_items, augment=True)
-        val_ds = NewspaperTextLineDataset(val_items, augment=False)
+        train_loader = DataLoader(train_ds, batch_size=self.cfg.batch_size, shuffle=True, collate_fn=ctc_collate_fn, num_workers=0)
+        val_loader = DataLoader(val_ds, batch_size=self.cfg.batch_size, shuffle=False, collate_fn=ctc_collate_fn, num_workers=0)
 
-        train_loader = DataLoader(train_ds, batch_size=self.cfg.batch_size, shuffle=True, collate_fn=ctc_collate_fn)
-        val_loader = DataLoader(val_ds, batch_size=self.cfg.batch_size, shuffle=False, collate_fn=ctc_collate_fn)
-
+        print(f"Beginning fine-tuning ({len(train_items)} train, {len(val_items)} val samples)...")
         patience_counter = 0
 
         for epoch in range(self.start_epoch, self.cfg.max_epochs + 1):
             t0 = time.time()
-            
-            # Unfreeze backbone halfway through training for joint optimization
-            if epoch == (self.cfg.max_epochs // 2) and self.cfg.freeze_backbone:
-                print("\n[Transfer Learning] Unfreezing CNN backbone for full end-to-end adaptation...")
-                self.model.unfreeze_all()
-                self.optimizer = torch.optim.AdamW(
-                    self.model.parameters(), lr=self.cfg.learning_rate * 0.25, weight_decay=self.cfg.weight_decay
-                )
-
             train_loss = self.train_epoch(train_loader)
             val_loss = self.evaluate(val_loader)
             self.scheduler.step()
 
-            is_best = val_loss < self.best_val_loss
-            if is_best:
+            duration = time.time() - t0
+            telemetry = self.log_resource_usage()
+            print(f"[Epoch {epoch:02d}/{self.cfg.max_epochs:02d}] Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | {duration:.1f}s | {telemetry}")
+
+            if val_loss < self.best_val_loss:
                 self.best_val_loss = val_loss
                 patience_counter = 0
+                ckpt_path = os.path.join(self.cfg.checkpoint_dir, "best_model.pth")
+                self.save(ckpt_path, epoch, val_loss)
+                print(f"  ★ New best model checkpoint saved -> {ckpt_path}")
             else:
                 patience_counter += 1
+                if patience_counter >= self.cfg.patience:
+                    print(f"Early stopping triggered after {epoch} epochs.")
+                    break
 
-            self.save_checkpoint(epoch, is_best=is_best)
-            duration = time.time() - t0
+    def save(self, path: str, epoch: int, val_loss: float):
+        torch.save({
+            "epoch": epoch,
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "val_loss": val_loss,
+            "vocab": VOCAB_LIST
+        }, path)
 
-            print(f"Epoch {epoch:02d}/{self.cfg.max_epochs:02d} [{duration:.1f}s] | "
-                  f"Train CTC Loss: {train_loss:.4f} | Val CTC Loss: {val_loss:.4f} | "
-                  f"{self.log_resource_usage()}")
-
-            if patience_counter >= self.cfg.early_stopping_patience:
-                print(f"\nEarly stopping triggered after {patience_counter} epochs without validation gain.")
-                break
-
-        print("\nFine-tuning completed successfully.")
+    def resume(self, checkpoint_path: str):
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        self.start_epoch = checkpoint["epoch"] + 1
+        self.best_val_loss = checkpoint.get("val_loss", float("inf"))
+        print(f"Resumed training from epoch {self.start_epoch} (Best Val Loss: {self.best_val_loss:.4f})")

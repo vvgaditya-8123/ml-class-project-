@@ -1,10 +1,7 @@
 {
-  "classes": {
-    "0": "Headline",
-    "1": "Body Text",
-    "2": "Banner / Masthead"
-  },
-  "feature_names": [
+  "model_type": "RandomForestClassifier",
+  "n_estimators": 120,
+  "features": [
     "rel_h",
     "rel_w",
     "aspect",
@@ -16,7 +13,14 @@
     "line_count",
     "col_span"
   ],
-  "accuracy": 0.998,
-  "total_samples": 7687,
-  "trained_at": "2026-11-05 21:49:02"
+  "classes": {
+    "0": "BODY_TEXT",
+    "1": "HEADLINE",
+    "2": "BANNER"
+  },
+  "val_accuracy": 0.9892408846383742,
+  "split_strategy": "group_document_leak_free",
+  "train_pages_count": 64,
+  "val_pages_count": 16,
+  "trained_timestamp": "2026-11-06 11:34:16"
 }

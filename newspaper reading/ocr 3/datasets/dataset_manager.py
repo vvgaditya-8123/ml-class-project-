@@ -51,24 +51,38 @@ class DatasetManager:
         train_ratio: float = 0.80,
         val_ratio: float = 0.10,
         test_ratio: float = 0.10,
-        real_world_items: Optional[List[OCRItem]] = None
+        real_world_items: Optional[List[OCRItem]] = None,
+        group_key: Optional[str] = "source_document_id"
     ) -> DatasetSplit:
-        """Constructs leak-free train/val/test splits and attaches real-world test cases."""
+        """Constructs leak-free train/val/test splits grouped by source document/publisher."""
         splits = BaseOCRDatasetLoader.create_leak_free_splits(
-            items, train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio
+            items, train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio, group_key=group_key
         )
         if real_world_items:
             splits.real_world_test = real_world_items
         return splits
 
+    def build_grouped_splits(
+        self,
+        items: List[OCRItem],
+        group_key: str = "source_document_id",
+        train_ratio: float = 0.80,
+        val_ratio: float = 0.10,
+        test_ratio: float = 0.10
+    ) -> DatasetSplit:
+        """Explicit convenience alias for document/publisher grouped splits."""
+        return self.build_splits(
+            items, train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio, group_key=group_key
+        )
+
     def export_split_manifest(self, splits: DatasetSplit, output_json_path: str):
         """Exports dataset split metadata for full reproducibility."""
         data = {
             "summary": splits.summary(),
-            "train": [{"path": i.image_path, "text": i.transcription, "source": i.dataset_source} for i in splits.train],
-            "val": [{"path": i.image_path, "text": i.transcription, "source": i.dataset_source} for i in splits.val],
-            "test": [{"path": i.image_path, "text": i.transcription, "source": i.dataset_source} for i in splits.test],
-            "real_world_test": [{"path": i.image_path, "text": i.transcription, "source": i.dataset_source} for i in splits.real_world_test]
+            "train": [{"path": i.image_path, "text": i.transcription, "source": i.dataset_source, "doc_id": i.source_document_id} for i in splits.train],
+            "val": [{"path": i.image_path, "text": i.transcription, "source": i.dataset_source, "doc_id": i.source_document_id} for i in splits.val],
+            "test": [{"path": i.image_path, "text": i.transcription, "source": i.dataset_source, "doc_id": i.source_document_id} for i in splits.test],
+            "real_world_test": [{"path": i.image_path, "text": i.transcription, "source": i.dataset_source, "doc_id": i.source_document_id} for i in splits.real_world_test]
         }
         with open(output_json_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)

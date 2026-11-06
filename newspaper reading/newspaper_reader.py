@@ -2,17 +2,26 @@ import os
 import sys
 import cv2
 import numpy as np
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 # Ensure local imports work cleanly
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
+from schema import OCRResult, ArticleResult, LayoutRegion, OCRStatus
 from layout.layout_engine import LayoutEngine
 from ocr.ocr_engine import OCREngine
 
 class NewspaperReader:
+    """
+    Unified Newspaper Reading Pipeline:
+    - Segments newspaper page layout into articles and columns (LayoutEngine).
+    - Recognizes text with sequence-aware OCR (OCREngine).
+    - Maintains strict output integrity: NEVER fabricates fallback text or placeholder stories.
+    - Exposes separate layout detection and OCR recognition scores.
+    """
+
     def __init__(self):
         print("Initializing NewspaperReader (Layout Engine + OCR Engine)...")
         self.layout_engine = LayoutEngine()
@@ -22,6 +31,7 @@ class NewspaperReader:
     def enhance_crop_for_ocr(self, crop: np.ndarray) -> np.ndarray:
         """
         Enhances text contrast and sharpness for optimal OCR reading.
+        Clamps dimensions and rescales small fonts cleanly.
         """
         if crop is None or crop.size == 0:
             return crop
@@ -31,13 +41,11 @@ class NewspaperReader:
         else:
             gray = crop.copy()
 
-        # Rescale if font height is too small (< 24px)
         h, w = gray.shape
         if h < 24:
             scale = 24.0 / max(1, h)
             gray = cv2.resize(gray, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
 
-        # Contrast enhancement via CLAHE
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         enhanced = clahe.apply(gray)
         return enhanced
@@ -46,9 +54,9 @@ class NewspaperReader:
         """
         Takes image path or cv2 image matrix:
         1. Runs layout segmentation model to detect and isolate articles & headlines.
-        2. Runs OCR character & word model on each headline.
-        3. Runs OCR character & word model on the corresponding body text beneath each headline.
-        Returns full structured article data.
+        2. Runs OCR on each headline without synthetic fallback.
+        3. Runs OCR on corresponding body text beneath each headline without canned paragraphs.
+        Returns full structured article data following the standardized schema.
         """
         if isinstance(image_source, str):
             if not os.path.exists(image_source):
@@ -66,7 +74,6 @@ class NewspaperReader:
 
         # 1. Layout Segmentation
         raw_articles = self.layout_engine.segment_layout(img_bgr)
-
         articles_data = []
 
         for idx, art in enumerate(raw_articles):
@@ -75,42 +82,60 @@ class NewspaperReader:
             hl_crop = art["headline_crop"]
             body_boxes = art["body_boxes"]
             body_crops = art["body_crops"]
+            layout_conf = art.get("layout_score", art.get("headline_conf", 0.0))
 
             # 2. OCR on Headline
             enhanced_hl = self.enhance_crop_for_ocr(hl_crop)
-            hl_text = self.ocr_engine.read_text_block(enhanced_hl).strip()
-
-            # Clean and capitalize headline text
-            if not hl_text:
-                hl_text = f"HEADLINE SECTION {a_id} (Col {int(hl_box[0]/(page_w/4))+1})"
-            else:
-                # Remove excessive whitespace
-                hl_text = " ".join(hl_text.split())
+            hl_res: OCRResult = self.ocr_engine.recognize(enhanced_hl)
+            headline_text = " ".join(hl_res.text.split()) if hl_res.text else ""
+            hl_status: OCRStatus = "ok" if headline_text else "empty"
+            hl_ocr_score = hl_res.score if headline_text else None
 
             # 3. OCR on Body Text blocks under this headline
             body_paragraphs = []
+            body_scores = []
             for b_crop in body_crops:
                 enhanced_body = self.enhance_crop_for_ocr(b_crop)
-                b_text = self.ocr_engine.read_text_block(enhanced_body).strip()
-                if b_text:
-                    body_paragraphs.append(b_text)
+                b_res: OCRResult = self.ocr_engine.recognize(enhanced_body)
+                clean_body = b_res.text.strip()
+                if clean_body:
+                    body_paragraphs.append(clean_body)
+                    if b_res.score is not None:
+                        body_scores.append(b_res.score)
 
-            combined_body = "\n\n".join(body_paragraphs)
-            if not combined_body.strip():
-                combined_body = f"[Article {a_id} text under '{hl_text}']\nDetailed investigative coverage continues across column lines. Content analyzed from newspaper page coordinates."
+            combined_body = "\n\n".join(body_paragraphs).strip()
+            body_status: OCRStatus = "ok" if combined_body else "empty"
+            body_ocr_score = float(np.mean(body_scores)) if body_scores else None
 
-            words = combined_body.split()
-            word_count = len(words)
+            # Honest warnings: NEVER fabricate fake text
+            warnings = []
+            if not headline_text:
+                warnings.append("Headline text could not be recognized.")
+            if not combined_body:
+                warnings.append("No body text was recognized in column blocks.")
 
-            articles_data.append({
-                "id": a_id,
-                "headline": hl_text,
-                "headline_box": hl_box,
-                "body_text": combined_body,
-                "body_boxes": body_boxes,
-                "word_count": word_count,
-                "confidence": art["headline_conf"]
-            })
+            word_count = len(combined_body.split())
+
+            article_res = ArticleResult(
+                article_id=str(a_id),
+                headline=headline_text,
+                body_text=combined_body,
+                headline_status=hl_status,
+                body_status=body_status,
+                layout_score=layout_conf,
+                headline_ocr_score=hl_ocr_score,
+                body_ocr_score=body_ocr_score,
+                headline_box=hl_box,
+                body_boxes=body_boxes,
+                word_count=word_count,
+                warnings=warnings,
+                metadata={
+                    "normalized_headline_box": art.get("normalized_headline_box"),
+                    "normalized_body_boxes": art.get("normalized_body_boxes", [])
+                }
+            )
+
+            articles_data.append(article_res.to_dict())
 
         return {
             "image_path": image_path,
@@ -124,6 +149,7 @@ class NewspaperReader:
         Draws visual layout bounding boxes on the newspaper image:
         - Highlights the selected headline and its associated body text prominently.
         - Dims non-selected articles.
+        - Accurately renders boxes on original page coordinates.
         """
         overlay = img_bgr.copy()
 
@@ -132,22 +158,22 @@ class NewspaperReader:
             is_selected = (selected_id is None) or (selected_id == a_id)
 
             hx, hy, hw, hh = art["headline_box"]
+            has_text = bool(art.get("headline", "").strip() or art.get("body_text", "").strip())
 
             if is_selected and selected_id is not None:
                 # Active selection: Bright Emerald Green for headline
                 color_hl = (30, 220, 60)
-                thickness = 4
-                # Fill transparent badge
-                cv2.rectangle(overlay, (hx, hy), (hx + hw, hy + hh), color_hl, thickness)
-                cv2.putText(overlay, f"#{a_id} HEADLINE", (hx, max(20, hy - 8)),
+                cv2.rectangle(overlay, (hx, hy), (hx + hw, hy + hh), color_hl, 4)
+                badge_text = f"#{a_id} HEADLINE" if has_text else f"#{a_id} (NO OCR)"
+                cv2.putText(overlay, badge_text, (hx, max(20, hy - 8)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, color_hl, 2, cv2.LINE_AA)
 
                 # Active body text: Vibrant Cyan
                 for bx, by, bw, bh in art["body_boxes"]:
                     cv2.rectangle(overlay, (bx, by), (bx + bw, by + bh), (255, 200, 0), 2)
             else:
-                # Non-selected / overview: Subtle Indigo/Blue
-                color_hl = (220, 100, 40)
+                # Non-selected / overview
+                color_hl = (220, 100, 40) if has_text else (140, 120, 100)
                 cv2.rectangle(overlay, (hx, hy), (hx + hw, hy + hh), color_hl, 2)
                 cv2.putText(overlay, f"#{a_id}", (hx + 4, hy + 24),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color_hl, 2, cv2.LINE_AA)
@@ -165,7 +191,7 @@ if __name__ == "__main__":
         print(f"\nProcessed Newspaper: {sample_news}")
         print(f"Total articles detected: {result['total_articles']}")
         for a in result["articles"]:
-            print(f"\n[Article #{a['id']}] {a['headline']}")
-            print(f"  Confidence: {a['confidence']*100:.1f}% | Words: {a['word_count']}")
-            print(f"  Body Preview: {a['body_text'][:120]}...")
-
+            hl = a["headline"] if a["headline"] else "[No headline text detected]"
+            print(f"\n[Article #{a['id']}] {hl}")
+            print(f"  Layout Score: {a['layout_score']*100:.1f}% | Headline Status: {a['headline_status']} | Body Status: {a['body_status']}")
+            print(f"  Words: {a['word_count']} | Warnings: {a['warnings']}")

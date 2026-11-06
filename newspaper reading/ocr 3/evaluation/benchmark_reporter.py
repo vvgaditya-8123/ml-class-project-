@@ -1,12 +1,25 @@
 import os
 import json
 import csv
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 class BenchmarkReporter:
     """
     Exports comprehensive OCR evaluation reports to Markdown, CSV, and JSON.
+    Guarantees that missing or uncalculated metrics are rendered as N/A rather than 0.00%.
     """
+
+    @staticmethod
+    def _format_pct(val: Optional[float]) -> str:
+        if val is None:
+            return "N/A"
+        return f"{val * 100:.2f}%"
+
+    @staticmethod
+    def _format_float(val: Optional[float], decimals: int = 4) -> str:
+        if val is None:
+            return "N/A"
+        return f"{val:.{decimals}f}"
 
     @staticmethod
     def to_markdown_table(results: List[Dict[str, Any]]) -> str:
@@ -20,12 +33,12 @@ class BenchmarkReporter:
 
         for r in results:
             name = r.get("model_name", "Unknown")
-            cer = f"{r.get('mean_cer', 0.0) * 100:.2f}%"
-            wer = f"{r.get('mean_wer', 0.0) * 100:.2f}%"
-            ned = f"{r.get('mean_ned', 0.0) * 100:.2f}%"
-            em = f"{r.get('exact_match_accuracy', 0.0) * 100:.2f}%"
-            f1 = f"{r.get('mean_f1', 0.0):.4f}"
-            lat = f"{r.get('latency_ms', 0.0):.1f}"
+            cer = BenchmarkReporter._format_pct(r.get("mean_cer"))
+            wer = BenchmarkReporter._format_pct(r.get("mean_wer"))
+            ned = BenchmarkReporter._format_pct(r.get("mean_ned"))
+            em = BenchmarkReporter._format_pct(r.get("exact_match_accuracy"))
+            f1 = BenchmarkReporter._format_float(r.get("mean_f1"), 4)
+            lat = BenchmarkReporter._format_float(r.get("latency_ms"), 1)
             rows.append(f"| **{name}** | {cer} | {wer} | {ned} | {em} | {f1} | {lat} |")
 
         return "\n".join(rows)

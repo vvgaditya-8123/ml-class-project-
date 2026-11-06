@@ -5,6 +5,7 @@ from tkinter import ttk, filedialog, messagebox
 import cv2
 import numpy as np
 from PIL import Image, ImageTk
+import threading
 
 # Ensure UTF-8 stdout
 sys.stdout.reconfigure(encoding='utf-8')
@@ -59,7 +60,9 @@ class NewspaperReaderGUI:
             self.status_bar.config(text="⏳ Initializing AI Models (Layout Model + OCR Model)...")
             self.root.update_idletasks()
             self.reader = NewspaperReader()
-            self.status_bar.config(text="⚡ Models Loaded: Layout Model (Random Forest 99.8%) | OCR Model (CharCNN 98.8%) | Ready")
+            layout_name = type(self.reader.layout_engine).__name__
+            ocr_name = getattr(self.reader.ocr_engine, "model_name", "SequenceOCR")
+            self.status_bar.config(text=f"⚡ Models Loaded: {layout_name} + {ocr_name} | Ready")
 
             # Load first sample automatically if available
             if self.sample_files:
@@ -135,7 +138,7 @@ class NewspaperReaderGUI:
             sample_menu.pack(side=tk.LEFT, padx=2)
             sample_menu.bind("<<ComboboxSelected>>", self._on_sample_selected)
 
-        run_btn = tk.Button(
+        self.run_btn = tk.Button(
             ctrl_frame,
             text="⚡ Analyze & Read",
             font=("Segoe UI", 9, "bold"),
@@ -149,7 +152,7 @@ class NewspaperReaderGUI:
             cursor="hand2",
             command=self.run_pipeline
         )
-        run_btn.pack(side=tk.LEFT, padx=6)
+        self.run_btn.pack(side=tk.LEFT, padx=6)
 
         # ---------------- 3-COLUMN WORKSPACE ----------------
         workspace = tk.Frame(main_box, bg=self.c_bg)
@@ -396,35 +399,49 @@ class NewspaperReaderGUI:
             messagebox.showerror("Error", "Models not yet initialized.")
             return
 
-        self.status_bar.config(text="🔍 Analyzing visual layout and running deep learning OCR extraction...")
-        self.root.update_idletasks()
+        self.status_bar.config(text="🔍 Analyzing visual layout and running sequence OCR extraction...")
+        self.run_btn.config(state=tk.DISABLED)
 
-        try:
-            self.current_analysis = self.reader.process_newspaper(self.current_img_bgr)
-            articles = self.current_analysis["articles"]
+        # Execute OCR pipeline in worker thread to prevent freezing the UI
+        def worker():
+            try:
+                res = self.reader.process_newspaper(self.current_img_bgr)
+                self.root.after(0, self._on_pipeline_success, res)
+            except Exception as e:
+                self.root.after(0, self._on_pipeline_error, str(e))
 
-            # Populate headlines listbox
-            self.headlines_listbox.delete(0, tk.END)
-            self.count_badge.config(text=f"{len(articles)} Headlines")
+        t = threading.Thread(target=worker, daemon=True)
+        t.start()
 
-            for a in articles:
-                preview = a["headline"][:45] + ("..." if len(a["headline"]) > 45 else "")
-                self.headlines_listbox.insert(tk.END, f" #{a['id']}: {preview}")
+    def _on_pipeline_success(self, analysis_result: dict):
+        self.run_btn.config(state=tk.NORMAL)
+        self.current_analysis = analysis_result
+        articles = self.current_analysis["articles"]
 
-            if articles:
-                # Select first headline automatically
-                self.headlines_listbox.selection_set(0)
-                self.display_article(1)
-            else:
-                self.headline_lbl.config(text="No headlines detected.")
-                self.body_text_widget.delete("1.0", tk.END)
+        # Populate headlines listbox
+        self.headlines_listbox.delete(0, tk.END)
+        self.count_badge.config(text=f"{len(articles)} Headlines")
 
-            self.status_bar.config(
-                text=f"✅ Analysis Complete: Detected {len(articles)} articles with headline-linked text."
-            )
-        except Exception as e:
-            messagebox.showerror("Processing Error", f"An error occurred during analysis:\n{str(e)}")
-            self.status_bar.config(text=f"❌ Processing failed: {str(e)}")
+        for a in articles:
+            hl = a["headline"] if a["headline"] else f"[Region #{a['id']} (Empty OCR)]"
+            preview = hl[:45] + ("..." if len(hl) > 45 else "")
+            self.headlines_listbox.insert(tk.END, f" #{a['id']}: {preview}")
+
+        if articles:
+            self.headlines_listbox.selection_set(0)
+            self.display_article(1)
+        else:
+            self.headline_lbl.config(text="No headlines or articles detected.")
+            self.body_text_widget.delete("1.0", tk.END)
+
+        self.status_bar.config(
+            text=f"✅ Analysis Complete: Detected {len(articles)} articles with layout segmentation & sequence OCR."
+        )
+
+    def _on_pipeline_error(self, err_msg: str):
+        self.run_btn.config(state=tk.NORMAL)
+        messagebox.showerror("Processing Error", f"An error occurred during analysis:\n{err_msg}")
+        self.status_bar.config(text=f"❌ Processing failed: {err_msg}")
 
     def _on_headline_selected(self, event=None):
         selection = self.headlines_listbox.curselection()
@@ -444,14 +461,35 @@ class NewspaperReaderGUI:
 
         self.selected_article_id = article_id
 
-        # Update Reader Pane
-        self.headline_lbl.config(text=target["headline"])
-        self.article_meta_lbl.config(
-            text=f"Article #{article_id}  |  Confidence: {target['confidence']*100:.1f}%  |  Words: {target['word_count']}  |  {len(target['body_boxes'])} Text Columns"
+        # Update Reader Pane with honest layout vs OCR scores
+        hl = target.get("headline", "").strip()
+        display_hl = hl if hl else f"[Region #{article_id} - Headline Text Empty]"
+        self.headline_lbl.config(text=display_hl)
+
+        layout_score_str = f"{target['layout_score']*100:.1f}%" if target.get('layout_score') is not None else "N/A"
+        ocr_score_str = f"{target['headline_ocr_score']*100:.1f}%" if target.get('headline_ocr_score') is not None else "N/A"
+
+        meta_line = (
+            f"Article #{article_id}  |  "
+            f"Layout Score: {layout_score_str}  |  "
+            f"OCR Score: {ocr_score_str}  |  "
+            f"Words: {target['word_count']}  |  "
+            f"Columns: {len(target['body_boxes'])}"
         )
+        self.article_meta_lbl.config(text=meta_line)
 
         self.body_text_widget.delete("1.0", tk.END)
-        self.body_text_widget.insert("1.0", target["body_text"])
+        body = target.get("body_text", "").strip()
+        if body:
+            self.body_text_widget.insert("1.0", body)
+        else:
+            # Honest status message: no fake strings
+            empty_note = (
+                "[No body text recognized for this article layout region.]\n\n"
+                "• Visual bounding boxes remain visible on the newspaper preview map.\n"
+                "• The OCR recognizer returned empty text for the column blocks."
+            )
+            self.body_text_widget.insert("1.0", empty_note)
 
         # Update Visual Overlay on the Newspaper Map
         overlay = self.reader.render_visual_overlay(self.current_img_bgr, articles, selected_id=article_id)
